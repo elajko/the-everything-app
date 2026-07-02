@@ -1,0 +1,163 @@
+// Prisma schema for The Everything App
+// Local dev uses SQLite (file-based, zero setup). Swap `provider` to
+// "postgresql" and set DATABASE_URL to a Postgres connection string
+// when you're ready to deploy — the schema itself doesn't need to change.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Prisma enums require a connector SQLite doesn't support, so this is
+// a plain String, validated against VALID_SECTIONS in routes/posts.js.
+model User {
+  id        String   @id @default(cuid())
+  handle    String   @unique
+  name      String
+  avatarUrl String
+  createdAt DateTime @default(now())
+
+  posts         Post[]
+  likes         Like[]
+  notifications Notification[] @relation("NotificationRecipient")
+  triggeredNotifications Notification[] @relation("NotificationActor")
+
+  channelVideos Video[]     @relation("VideoChannel")
+  videoLikes    VideoLike[]
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+
+  posts  PostTag[]
+  videos VideoTag[]
+}
+
+// Explicit join table so we can enforce "1-3 tags per post" in application code
+// and keep the relation queryable in both directions.
+model PostTag {
+  postId String
+  tagId  String
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+}
+
+// Social/News content. Streaming videos are NOT posts — see Video below —
+// so `section` is only ever "social" or "news" (VALID_SECTIONS in
+// routes/posts.js). A post may still attach an image or a video as plain
+// media (XOR, no title), but that's cosmetically identical to an image post;
+// it never gets the Streaming tab's YouTube-style treatment.
+model Post {
+  id        String   @id @default(cuid())
+  authorId  String
+  section   String
+  body      String   @default("")
+  imageUrl  String?
+  videoUrl  String?
+  createdAt DateTime @default(now())
+
+  // Self-relation for reposts of another post: a repost is its own Post row
+  // that points at the post it embeds. The original post is never modified.
+  repostOfId String?
+  repostOf   Post?    @relation("Reposts", fields: [repostOfId], references: [id])
+  repostedBy Post[]   @relation("Reposts")
+
+  // A repost can instead target a streaming Video — mutually exclusive with
+  // repostOfId (a repost has exactly one original, and that original is
+  // either a Post or a Video, never both). Rendered as a distinct compact
+  // "watch streaming video" card, not a normal post embed.
+  repostOfVideoId String?
+  repostOfVideo   Video?  @relation("VideoReposts", fields: [repostOfVideoId], references: [id])
+
+  author User      @relation(fields: [authorId], references: [id])
+  tags   PostTag[]
+  likes  Like[]
+  notifications Notification[]
+
+  @@index([section, createdAt])
+}
+
+model Like {
+  id     String @id @default(cuid())
+  userId String
+  postId String
+
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId]) // one like per user per post
+}
+
+// Streaming content lives here, entirely separate from Post — only Videos
+// appear in the Streaming tab, only Posts appear in Social/News. A Video
+// can be reposted (see Post.repostOfVideoId), which notifies nobody today
+// (Notification is Post-shaped only — out of scope for this split) but does
+// embed a compact preview card wherever the resulting post is shown.
+model Video {
+  id           String   @id @default(cuid())
+  channelId    String
+  videoUrl     String
+  videoTitle   String
+  thumbnailUrl String?
+  description  String   @default("")
+  createdAt    DateTime @default(now())
+
+  channel User        @relation("VideoChannel", fields: [channelId], references: [id])
+  tags    VideoTag[]
+  likes   VideoLike[]
+  repostedBy Post[]   @relation("VideoReposts")
+
+  @@index([createdAt])
+}
+
+model VideoTag {
+  videoId String
+  tagId   String
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([videoId, tagId])
+}
+
+model VideoLike {
+  id      String @id @default(cuid())
+  userId  String
+  videoId String
+
+  user  User  @relation(fields: [userId], references: [id])
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+}
+
+// Only "repost" is ever written (see routes/posts.js); plain String for the
+// same SQLite-enum-support reason as Post.section above.
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // who receives the notification (the original post's author)
+  recipientId String
+  recipient   User @relation("NotificationRecipient", fields: [recipientId], references: [id])
+
+  // who caused it (the person who reposted)
+  actorId String
+  actor   User @relation("NotificationActor", fields: [actorId], references: [id])
+
+  // the post that was reposted
+  postId String
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, read])
+}
