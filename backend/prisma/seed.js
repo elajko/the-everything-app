@@ -7,6 +7,7 @@
 // Run with: npm run seed
 
 import { PrismaClient } from "@prisma/client";
+import { MAX_BIO_LENGTH } from "../src/constants.js";
 const prisma = new PrismaClient();
 
 const AVATAR =
@@ -19,25 +20,56 @@ const TAGS = [
 ];
 
 const USERS = [
-  { handle: "you", name: "You", bio: "Just here for the everything." },
-  { handle: "marencole", name: "Maren Cole" },
-  { handle: "dok_writes", name: "D. Okafor" },
-  { handle: "priyanotes", name: "Priya N." },
-  { handle: "jweir", name: "Jonas Weir" },
-  { handle: "harborwire", name: "Harbor Wire" },
+  {
+    handle: "you",
+    name: "You",
+    bio: "Just poking around every corner of this app — the news, the streams, the socials. If you're reading this, hi. I probably reposted something you made at some point.",
+  },
+  {
+    handle: "marencole",
+    name: "Maren Cole",
+    bio: "Home baker chasing the perfect crumb. I measure in grams, not cups, and will absolutely talk your ear off about hydration percentages if you let me. Currently obsessed with laminated dough.",
+  },
+  {
+    handle: "dok_writes",
+    name: "D. Okafor",
+    bio: "I read things so you don't have to, then repost them anyway so you do it yourself. Mostly nonfiction, the occasional deep-dive thread, and whatever my group chat is arguing about that week.",
+  },
+  {
+    handle: "priyanotes",
+    name: "Priya N.",
+    bio: "Professional thread-follower. I save the good stuff so it doesn't disappear into the feed — recipes, receipts, receipts about recipes. Ask me about my bookmarks folder. Actually, don't.",
+  },
+  {
+    handle: "jweir",
+    name: "Jonas Weir",
+    bio: "Here for the videos mostly. I will absolutely repost something before finishing it, then feel guilty about it later. Currently trying (and failing) to replicate a dumpling recipe from a video.",
+  },
+  {
+    handle: "harborwire",
+    name: "Harbor Wire",
+    bio: "City council, zoning fights, school board meetings nobody else shows up to — we're there, we're taking notes, and we're not exaggerating the headline just to get clicks.",
+    verifiedNewsProvider: true, // the only seeded account that gets the "Verified news provider" badge
+  },
   {
     handle: "latekitchen",
     name: "Late Kitchen",
-    headline: "Home cooking, no shortcuts",
-    bio: "Recipes that take longer than they should, on purpose. New upload most Sundays.",
+    bio: "Recipes that take longer than they should, on purpose. New upload most Sundays. I will not be doing a 5-minute version of anything — if a dish takes three days, you're getting all three.",
   },
   {
     handle: "overclocked",
     name: "Overclocked",
-    headline: "Hardware pushed past spec",
-    bio: "Benchmarks, teardowns, and the occasional very bad idea involving liquid nitrogen.",
+    bio: "Benchmarks, teardowns, and the occasional very bad idea involving liquid nitrogen. If a part has a rated limit, my job is finding out what happens past it. Warranty voided so you don't have to.",
   },
 ];
+
+for (const u of USERS) {
+  if (u.bio && u.bio.length > MAX_BIO_LENGTH) {
+    throw new Error(
+      `Seed bio for @${u.handle} is ${u.bio.length} chars, over MAX_BIO_LENGTH (${MAX_BIO_LENGTH})`
+    );
+  }
+}
 
 // Demo external links — grid of Patreon/Twitch/YouTube/etc on the profile
 // page. `platform` picks the icon on the frontend; unset/unrecognized
@@ -52,6 +84,19 @@ const PROFILE_LINKS = {
     { platform: "youtube", label: "YouTube", url: "https://youtube.com/@overclocked", description: "Full teardown videos." },
     { platform: "twitch", label: "Twitch", url: "https://twitch.tv/overclocked", description: "Live benchmarking sessions." },
     { platform: null, label: "Overclocked.gg", url: "https://overclocked.gg", description: "Build logs and part lists." },
+  ],
+  // real URLs (not made-up domains), spread one-per-user across a few
+  // existing accounts that otherwise have no links — tests the single-card
+  // grid layout and each platform icon individually rather than only ever
+  // seeing a full 3-link grid
+  marencole: [
+    { platform: "twitch", label: "Twitch", url: "https://www.twitch.tv/jawsh", description: "Occasional livestreams." },
+  ],
+  dok_writes: [
+    { platform: "twitter", label: "X", url: "https://x.com/Its_Jawsh", description: "Where I actually post." },
+  ],
+  jweir: [
+    { platform: "youtube", label: "YouTube", url: "https://www.youtube.com/channel/UCBWmg1cthYintSipSYxb-sw", description: "Video uploads." },
   ],
 };
 
