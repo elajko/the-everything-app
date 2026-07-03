@@ -1,11 +1,17 @@
 # The Everything App
 
-A Twitter-style feed with three sections (Social, News, Streaming) that share
-one underlying post model: posts carry 1–3 category tags, an optional image
-*or* video (video posts require a title), likes, and reposts. A repost is its
-own post that embeds the original by reference — reposting never modifies the
-original, but it does notify the original author. Embeds can nest arbitrarily
-deep, forming threads.
+A web platform that extends X's philosophy, acting as a news outlet, a
+streaming service, a social media platform, an art hosting site, and more —
+all of it organized under a concise, unified, fixed set of tags.
+
+Three tabs (Social, News, Streaming) share one underlying Post model: posts
+carry 1–3 category tags, an optional image *or* video, likes, and reposts. A
+repost is its own post that embeds the original by reference — reposting
+never modifies the original, but it does notify the original author. Embeds
+can nest arbitrarily deep, forming threads. Streaming videos are a separate
+model with their own titled, YouTube-style detail page — reposting one
+embeds a compact "watch streaming video" card instead of a normal post
+embed.
 
 ```
 everything-app/

@@ -19,15 +19,41 @@ const TAGS = [
 ];
 
 const USERS = [
-  { handle: "you", name: "You" },
+  { handle: "you", name: "You", bio: "Just here for the everything." },
   { handle: "marencole", name: "Maren Cole" },
   { handle: "dok_writes", name: "D. Okafor" },
   { handle: "priyanotes", name: "Priya N." },
   { handle: "jweir", name: "Jonas Weir" },
   { handle: "harborwire", name: "Harbor Wire" },
-  { handle: "latekitchen", name: "Late Kitchen" },
-  { handle: "overclocked", name: "Overclocked" },
+  {
+    handle: "latekitchen",
+    name: "Late Kitchen",
+    headline: "Home cooking, no shortcuts",
+    bio: "Recipes that take longer than they should, on purpose. New upload most Sundays.",
+  },
+  {
+    handle: "overclocked",
+    name: "Overclocked",
+    headline: "Hardware pushed past spec",
+    bio: "Benchmarks, teardowns, and the occasional very bad idea involving liquid nitrogen.",
+  },
 ];
+
+// Demo external links — grid of Patreon/Twitch/YouTube/etc on the profile
+// page. `platform` picks the icon on the frontend; unset/unrecognized
+// falls back to a generic link icon.
+const PROFILE_LINKS = {
+  latekitchen: [
+    { platform: "youtube", label: "YouTube", url: "https://youtube.com/@latekitchen", description: "Full recipe videos, weekly." },
+    { platform: "twitch", label: "Twitch", url: "https://twitch.tv/latekitchen", description: "Watch my livestreams!" },
+    { platform: "patreon", label: "Patreon", url: "https://patreon.com/latekitchen", description: "Early access + recipe cards." },
+  ],
+  overclocked: [
+    { platform: "youtube", label: "YouTube", url: "https://youtube.com/@overclocked", description: "Full teardown videos." },
+    { platform: "twitch", label: "Twitch", url: "https://twitch.tv/overclocked", description: "Live benchmarking sessions." },
+    { platform: null, label: "Overclocked.gg", url: "https://overclocked.gg", description: "Build logs and part lists." },
+  ],
+};
 
 const VIDEO_SRC =
   "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
@@ -51,6 +77,14 @@ async function main() {
       update: {},
       create: { ...u, avatarUrl: AVATAR },
     });
+  }
+
+  for (const [handle, links] of Object.entries(PROFILE_LINKS)) {
+    for (const [i, link] of links.entries()) {
+      await prisma.profileLink.create({
+        data: { ...link, userId: userRows[handle].id, sortOrder: i },
+      });
+    }
   }
 
   async function createPost({ author, section, body, tags, imageUrl, videoUrl }) {

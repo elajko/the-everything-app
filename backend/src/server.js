@@ -7,6 +7,7 @@ import { videosRouter } from "./routes/videos.js";
 import { tagsRouter } from "./routes/tags.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { uploadsRouter, uploadsDir } from "./routes/uploads.js";
+import { usersRouter } from "./routes/users.js";
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use("/api/videos", videosRouter);
 app.use("/api/tags", tagsRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/uploads", uploadsRouter);
+app.use("/api/users", usersRouter);
 
 app.use((err, req, res, next) => {
   console.error(err);

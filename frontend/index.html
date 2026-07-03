@@ -65,19 +65,24 @@
   .feedapp ::selection{background:var(--accent-soft);}
 
   /* ---------- app layout: sidebar + shell ---------- */
-  /* .applayout's own width is driven directly off the same --shell-width
+  /* .applayout's own size is driven directly off the same --shell-width
      vars (not left to shrink-to-fit auto-sizing) — some browsers don't
      reliably re-run an ancestor's intrinsic-size calc when only a
      descendant's width changes via class toggle, which left the row
-     visibly stuck at the old width when switching tabs. */
+     visibly stuck at the old width when switching tabs. It animates via
+     flex-basis (not width) for the same reason .shell does below — width
+     transitions on flex items are unreliable, flex-basis isn't. Keeping
+     flex-shrink:1 so it still shrinks gracefully on narrow viewports. */
   .applayout{
     display:flex;
     align-items:flex-start;
     gap:28px;
     padding:20px 14px 0 14px;
-    width:calc(210px + 28px + var(--shell-width) + 28px + 210px + 28px);
+    flex:0 1 calc(210px + 28px + var(--shell-width) + 28px + 210px + 28px);
+    min-width:0;
+    transition:flex-basis .18s ease;
   }
-  .applayout.wide{width:calc(210px + 28px + var(--shell-width-wide) + 28px + 210px + 28px);}
+  .applayout.wide{flex-basis:calc(210px + 28px + var(--shell-width-wide) + 28px + 210px + 28px);}
   .sidebar{
     width:210px;
     flex:none;
@@ -167,7 +172,7 @@
     .menu-btn{display:flex;}
     /* sidebars are out of flow (drawer / hidden) here, so shell is the
        only flex item left — fall back to fluid width */
-    .applayout, .applayout.wide{width:100%;}
+    .applayout, .applayout.wide{flex-basis:100%;}
     .shell, .applayout.wide .shell{flex-basis:100%;}
   }
 
@@ -360,6 +365,25 @@
     transition:border-color .12s ease;
   }
   .composer-collapsed:hover .composer-fake-input{border-color:var(--accent);}
+  /* News tab: standard users don't get a composer, just this gate — same
+     padding/border/font-size as .composer-fake-input so swapping between
+     tabs doesn't change the composer row's height */
+  .composer-news-gate{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:100px;
+    padding:8px 14px;
+    font-size:13px;
+    font-weight:700;
+    color:var(--accent);
+    cursor:pointer;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .composer-news-gate:hover{border-color:var(--accent);background:var(--accent-soft);}
   .composer-expanded{
     display:flex;
     flex-direction:column;
@@ -575,6 +599,10 @@
   .namerow{display:flex;align-items:baseline;gap:5px;flex-wrap:wrap;}
   .displayname{font-weight:700;font-size:13.5px;color:var(--ink);}
   .handle{font-family:'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;font-size:11.5px;color:var(--accent);}
+  /* clickable avatar/handle -> profile page, used across posts/embeds/cards */
+  [data-user-handle]{cursor:pointer;}
+  img[data-user-handle]:hover{opacity:0.85;}
+  .namerow[data-user-handle]:hover .displayname{text-decoration:underline;}
   .postdate{font-size:11px;color:var(--muted);margin-top:1px;font-family:'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;}
   .post-body{font-size:13.5px;line-height:1.45;color:var(--ink-soft);margin:7px 0 0 0;white-space:pre-wrap;}
   .post-image{margin-top:8px;width:100%;max-height:280px;object-fit:cover;border-radius:7px;border:1px solid var(--border-soft);display:block;}
@@ -721,6 +749,56 @@
   .backbtn svg{width:13px;height:13px;}
   .detail-post{cursor:default;}
   .detail-post .post-body{font-size:14.5px;}
+
+  /* ---------- user profile page ---------- */
+  .profile-handle-label{
+    font-family:'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
+    font-size:11px;
+    color:var(--muted);
+    padding:14px 14px 0 14px;
+  }
+  .profile-hero{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:20px;
+    padding:10px 14px 18px 14px;
+  }
+  .profile-hero-text{flex:1;min-width:0;}
+  .profile-name{font-size:21px;font-weight:800;color:var(--ink);line-height:1.3;}
+  .profile-headline{font-size:13.5px;font-weight:600;color:var(--ink-soft);margin-top:3px;}
+  .profile-bio{font-size:13.5px;line-height:1.55;color:var(--ink-soft);margin-top:10px;white-space:pre-wrap;}
+  .profile-avatar-large{
+    width:88px;height:88px;border-radius:100px;object-fit:cover;flex:none;
+    border:1px solid var(--border-soft);background:var(--tag-bg);
+  }
+
+  .profile-links-section{padding:14px;border-top:1px solid var(--border-soft);}
+  .profile-links-title{
+    font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
+    color:var(--muted);margin-bottom:10px;
+  }
+  .profile-links-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+    gap:10px;
+  }
+  .profile-link-card{
+    display:flex;flex-direction:column;gap:6px;
+    padding:12px;
+    border:1px solid var(--border-soft);
+    border-radius:9px;
+    background:var(--surface);
+    text-decoration:none;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .profile-link-card:hover{border-color:var(--accent);background:var(--hover-bg);}
+  .profile-link-icon{width:20px;height:20px;color:var(--accent);}
+  .profile-link-icon svg{width:100%;height:100%;}
+  .profile-link-name{font-size:13px;font-weight:700;color:var(--ink);}
+  .profile-link-desc{font-size:11.5px;color:var(--muted);line-height:1.4;}
+
+  .profile-posts-section{padding:14px;border-top:1px solid var(--border-soft);}
 </style>
 
 <div class="feedapp" id="feedapp">
@@ -844,6 +922,11 @@ function normalizeVideo(v){
   };
 }
 
+function normalizeProfileUser(u){
+  if(!u) return null;
+  return {...u, avatar: PLACEHOLDER_AVATAR};
+}
+
 async function fetchTags(){
   try{
     const res = await fetch(`${API_BASE}/tags`);
@@ -860,11 +943,12 @@ let currentTab = 'social';
 let streamingSubTab = 'vids'; // 'vids' | 'livestreams' | 'shows' | 'music'
 let selectedTag = null;
 let searchQuery = "";
-let view = 'feed'; // 'feed' | 'detail'
+let view = 'feed'; // 'feed' | 'detail' | 'profile'
 let detailType = 'post'; // 'post' | 'video'
 let detailId = null;
 let detailPost = null;
 let detailVideo = null;
+let detailUser = null;
 let searchDebounceTimer;
 
 // ---- posts for the current tab/filter, paginated from the API ----
@@ -1044,6 +1128,11 @@ function updateComposerSubmitBtn(){
 }
 
 function renderComposer(focusBody){
+  if(currentTab === 'news'){
+    composerEl.innerHTML = `<button type="button" class="composer-news-gate" data-action="apply-news-provider">Apply to become a trusted news provider</button>`;
+    return;
+  }
+
   const sectionLabel = SECTIONS.find(s=>s.id===currentTab).label;
 
   if(!composerOpen){
@@ -1177,6 +1266,10 @@ function renderVideoComposer(focusBody){
 }
 
 composerEl.addEventListener('click', (e)=>{
+  if(e.target.closest('[data-action="apply-news-provider"]')){
+    showToast("Applications aren't open yet");
+    return;
+  }
   if(e.target.closest('[data-action="expand-composer"]')){
     composerOpen = true;
     renderComposer(true);
@@ -1618,6 +1711,19 @@ const ICON_BACK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const ICON_SHARE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.2M8.6 13.4l6.8 3.2"/></svg>`;
 const ICON_PLAY = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>`;
 
+// simple line-icons in the app's own style, not brand logos — enough to
+// recognize the platform at a glance without reproducing anyone's mark
+const ICON_LINK_GENERIC = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>`;
+const PLATFORM_ICONS = {
+  twitch: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3h16v12l-4 4h-4l-3 3v-3H4V3z"/><path d="M13 7v5M17 7v5"/></svg>`,
+  youtube: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3V9z"/></svg>`,
+  patreon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="15" cy="9" r="5"/><path d="M6 3v18"/></svg>`,
+  twitter: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l16 16M20 4L4 20"/></svg>`,
+  instagram: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1"/></svg>`,
+  tiktok: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3a5 5 0 0 0 5 5"/></svg>`,
+  website: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>`,
+};
+
 function renderShareBtn(kind, id){
   return `<button class="actbtn share" data-action="share" data-kind="${kind}" data-id="${id}" title="Copy link">${ICON_SHARE}<span>Share</span></button>`;
 }
@@ -1652,17 +1758,25 @@ function renderPostEmbed(post, depth){
   return '';
 }
 
+// shared by posts, embeds, and the video detail page's channel header —
+// avatar and name/handle are both click targets that open that user's
+// profile (see the [data-user-handle] delegated handler)
+function renderPostHead(profile, date){
+  return `
+      <div class="post-head">
+        <img class="avatar" data-user-handle="${profile.handle}" src="${profile.avatar}"/>
+        <div class="post-headtext">
+          <div class="namerow" data-user-handle="${profile.handle}"><span class="displayname">${profile.name}</span><span class="handle">@${profile.handle}</span></div>
+          <div class="postdate">${fmtDate(date)}</div>
+        </div>
+      </div>`;
+}
+
 function renderEmbed(post, depth){
   if(!post || depth>3) return '';
   return `
     <div class="embed" data-id="${post.id}">
-      <div class="post-head">
-        <img class="avatar" src="${post.author.avatar}"/>
-        <div class="post-headtext">
-          <div class="namerow"><span class="displayname">${post.author.name}</span><span class="handle">@${post.author.handle}</span></div>
-          <div class="postdate">${fmtDate(post.date)}</div>
-        </div>
-      </div>
+      ${renderPostHead(post.author, post.date)}
       ${post.body ? `<div class="post-body">${post.body}</div>` : ''}
       ${renderPostMedia(post)}
       ${renderPostEmbed(post, depth+1)}
@@ -1680,9 +1794,9 @@ function renderVideoEmbed(video){
         <div class="video-embed-meta">
           <div class="video-embed-title">${video.videoTitle}</div>
           <div class="video-embed-channel">
-            <img class="video-embed-avatar" src="${video.channel.avatar}"/>
-            <span class="displayname">${video.channel.name}</span>
-            <span class="handle">@${video.channel.handle}</span>
+            <img class="video-embed-avatar" data-user-handle="${video.channel.handle}" src="${video.channel.avatar}"/>
+            <span class="displayname" data-user-handle="${video.channel.handle}">${video.channel.name}</span>
+            <span class="handle" data-user-handle="${video.channel.handle}">@${video.channel.handle}</span>
             <span class="postdate">${fmtDate(video.date)}</span>
           </div>
         </div>
@@ -1695,13 +1809,7 @@ function renderPost(post, extraClass){
   return `
     <div class="post ${extraClass||''}" data-id="${post.id}">
       ${tagPills(post.tags)}
-      <div class="post-head">
-        <img class="avatar" src="${post.author.avatar}"/>
-        <div class="post-headtext">
-          <div class="namerow"><span class="displayname">${post.author.name}</span><span class="handle">@${post.author.handle}</span></div>
-          <div class="postdate">${fmtDate(post.date)}</div>
-        </div>
-      </div>
+      ${renderPostHead(post.author, post.date)}
       ${post.body ? `<div class="post-body">${post.body}</div>` : ''}
       ${renderPostMedia(post)}
       ${renderPostEmbed(post, 1)}
@@ -1719,16 +1827,49 @@ function renderVideoDetailPage(video){
       <video class="post-video" src="${video.video}" controls poster="${video.thumbnail||''}"></video>
       <div class="video-title">${video.videoTitle}</div>
       <div class="video-detail-meta">
-        <div class="post-head">
-          <img class="avatar" src="${video.channel.avatar}"/>
-          <div class="post-headtext">
-            <div class="namerow"><span class="displayname">${video.channel.name}</span><span class="handle">@${video.channel.handle}</span></div>
-            <div class="postdate">${fmtDate(video.date)}</div>
-          </div>
-        </div>
+        ${renderPostHead(video.channel, video.date)}
         ${renderActionBar('video', video, true)}
       </div>
       ${video.description ? `<div class="post-body">${video.description}</div>` : ''}
+    </div>`;
+}
+
+function renderProfileLinkCard(link){
+  const icon = (link.platform && PLATFORM_ICONS[link.platform]) || ICON_LINK_GENERIC;
+  return `
+    <a class="profile-link-card" href="${attr(link.url)}" target="_blank" rel="noopener noreferrer">
+      <div class="profile-link-icon">${icon}</div>
+      <div class="profile-link-name">${escapeHtml(link.label)}</div>
+      ${link.description ? `<div class="profile-link-desc">${escapeHtml(link.description)}</div>` : ''}
+    </a>`;
+}
+
+// Handle at top (small, muted, findable-not-hidden) → hero (name/headline/
+// bio left, big avatar right) → links grid, its own distinct section →
+// reserved space for the user's posts (not implemented yet — mixing vids,
+// news, and social posts into one feed is its own design problem).
+function renderProfilePage(user){
+  return `
+    <div class="profile-page">
+      <div class="profile-handle-label">@${user.handle}</div>
+      <div class="profile-hero">
+        <div class="profile-hero-text">
+          <div class="profile-name">${escapeHtml(user.name)}</div>
+          ${user.headline ? `<div class="profile-headline">${escapeHtml(user.headline)}</div>` : ''}
+          ${user.bio ? `<div class="profile-bio">${escapeHtml(user.bio)}</div>` : ''}
+        </div>
+        <img class="profile-avatar-large" src="${user.avatar}"/>
+      </div>
+      ${user.links.length ? `
+      <div class="profile-links-section">
+        <div class="profile-links-title">Links</div>
+        <div class="profile-links-grid">
+          ${user.links.map(renderProfileLinkCard).join('')}
+        </div>
+      </div>` : ''}
+      <div class="profile-posts-section">
+        <div class="empty-state"><b>Posts</b>Coming soon.</div>
+      </div>
     </div>`;
 }
 
@@ -1740,10 +1881,10 @@ function renderCard(video){
       </div>
       ${tagPills(video.tags).replace('post-tags','post-tags card-tags')}
       <div class="card-meta">
-        <img class="card-avatar" src="${video.channel.avatar}"/>
+        <img class="card-avatar" data-user-handle="${video.channel.handle}" src="${video.channel.avatar}"/>
         <div>
           <div class="card-title">${video.videoTitle}</div>
-          <div class="card-sub">@${video.channel.handle} · ${fmtDate(video.date)}</div>
+          <div class="card-sub"><span data-user-handle="${video.channel.handle}">@${video.channel.handle}</span> · ${fmtDate(video.date)}</div>
         </div>
       </div>
     </div>`;
@@ -1751,10 +1892,22 @@ function renderCard(video){
 
 function renderMain(){
   const onPlaceholderSubTab = currentTab==='streaming' && streamingSubTab!=='vids';
-  composerEl.style.display = (view==='detail' || onPlaceholderSubTab) ? 'none' : '';
-  searchRowEl.style.display = (view==='detail' || onPlaceholderSubTab) ? 'none' : '';
-  tabsEl.style.display = view==='detail' ? 'none' : '';
-  subTabsEl.style.display = (view==='detail' || currentTab!=='streaming') ? 'none' : 'flex';
+  composerEl.style.display = (view!=='feed' || onPlaceholderSubTab) ? 'none' : '';
+  searchRowEl.style.display = (view!=='feed' || onPlaceholderSubTab) ? 'none' : '';
+  tabsEl.style.display = view!=='feed' ? 'none' : '';
+  subTabsEl.style.display = (view!=='feed' || currentTab!=='streaming') ? 'none' : 'flex';
+
+  if(view==='profile'){
+    applayoutEl.classList.remove('wide');
+    const user = detailUser;
+    if(!user){ view='feed'; renderMain(); return; }
+    feedbodyEl.innerHTML = `
+      <div class="detailwrap">
+        <div class="backbtn" data-action="back">${ICON_BACK} Back to ${SECTIONS.find(s=>s.id===currentTab).label}</div>
+        ${renderProfilePage(user)}
+      </div>`;
+    return;
+  }
 
   if(view==='detail'){
     if(detailType==='video'){
@@ -1815,6 +1968,9 @@ function postUrl(id){
 function videoPermalink(id){
   return `${location.origin}${location.pathname}#video/${id}`;
 }
+function profileUrl(handle){
+  return `${location.origin}${location.pathname}#user/${handle}`;
+}
 
 // remembers where you were in the feed so "back" restores it exactly,
 // instead of dumping you at the top of a re-rendered list
@@ -1859,9 +2015,38 @@ function closeDetail({push=true}={}){
   view = 'feed';
   detailPost = null;
   detailVideo = null;
+  detailUser = null;
   if(push) history.pushState({}, '', location.pathname + location.search);
   renderMain();
   window.scrollTo({top: savedFeedScrollY, behavior:'instant'});
+}
+
+// profiles are always fetched fresh by handle (no local "already loaded"
+// list to check against, unlike posts/videos), so open+load are one step.
+async function openProfile(handle, {push=true}={}){
+  const cameFromFeed = view === 'feed';
+  const scrollYAtClick = window.scrollY;
+  try{
+    const res = await fetch(`${API_BASE}/users/${handle}`);
+    if(!res.ok) throw new Error('not found');
+    const user = normalizeProfileUser(await res.json());
+    if(cameFromFeed) savedFeedScrollY = scrollYAtClick;
+    // deliberately doesn't touch currentTab, same reasoning as
+    // openVideoDetail — "back" should return wherever you came from
+    detailUser = user;
+    detailPost = null;
+    detailVideo = null;
+    view = 'profile';
+    renderTabs();
+    renderSubTabs();
+    renderComposer();
+    if(push) history.pushState({handle}, '', `#user/${handle}`);
+    renderMain();
+    window.scrollTo({top:0, behavior:'instant'});
+  }catch(e){
+    console.error(e);
+    showToast('Could not load that profile');
+  }
 }
 
 async function loadPostFromHash(id, {push=false}={}){
@@ -1903,10 +2088,13 @@ async function loadVideoFromHash(id, {push=false}={}){
 window.addEventListener('popstate', ()=>{
   const mp = location.hash.match(/^#post\/(.+)$/);
   const mv = location.hash.match(/^#video\/(.+)$/);
+  const mu = location.hash.match(/^#user\/(.+)$/);
   if(mp){
     loadPostFromHash(decodeURIComponent(mp[1]), {push:false});
   } else if(mv){
     loadVideoFromHash(decodeURIComponent(mv[1]), {push:false});
+  } else if(mu){
+    openProfile(decodeURIComponent(mu[1]), {push:false});
   } else {
     closeDetail({push:false});
   }
@@ -1942,6 +2130,7 @@ feedbodyEl.addEventListener('click', (e)=>{
   const repostBtn = e.target.closest('[data-action="repost"]');
   const shareBtn = e.target.closest('[data-action="share"]');
   const backBtn = e.target.closest('[data-action="back"]');
+  const userHandleEl = e.target.closest('[data-user-handle]');
   const embedEl = e.target.closest('.embed');
   const card = e.target.closest('.card');
   const postRow = e.target.closest('.post');
@@ -1978,6 +2167,10 @@ feedbodyEl.addEventListener('click', (e)=>{
   }
   if(backBtn){
     closeDetail();
+    return;
+  }
+  if(userHandleEl){
+    openProfile(userHandleEl.getAttribute('data-user-handle'));
     return;
   }
   if(embedEl){
@@ -2084,6 +2277,7 @@ fetchTags();
 (async function initFromUrl(){
   const mp = location.hash.match(/^#post\/(.+)$/);
   const mv = location.hash.match(/^#video\/(.+)$/);
+  const mu = location.hash.match(/^#user\/(.+)$/);
   if(mp){
     await loadPostFromHash(decodeURIComponent(mp[1]), {push:false});
   } else if(mv){
@@ -2091,6 +2285,8 @@ fetchTags();
     // preserve, so default its "back" destination to Streaming
     currentTab = 'streaming';
     await loadVideoFromHash(decodeURIComponent(mv[1]), {push:false});
+  } else if(mu){
+    await openProfile(decodeURIComponent(mu[1]), {push:false});
   }
   refetchCurrentTab(true);
 })();
