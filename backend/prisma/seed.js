@@ -19,47 +19,61 @@ const TAGS = [
   "Fashion", "Health", "Movies", "Books", "Nature", "Comedy",
 ];
 
+// Wide header images shown above the hero on each profile page — real
+// Unsplash photos picked to loosely match each account's theme, thrown in
+// mostly for visual variety in the demo data (not user-uploaded).
+const UNSPLASH = (id) =>
+  `https://images.unsplash.com/photo-${id}?w=1200&q=80&auto=format&fit=crop`;
+
 const USERS = [
   {
     handle: "you",
     name: "You",
     bio: "Just poking around every corner of this app — the news, the streams, the socials. If you're reading this, hi. I probably reposted something you made at some point.",
+    bannerUrl: UNSPLASH("1519681393784-d120267933ba"), // starfield/galaxy
   },
   {
     handle: "marencole",
     name: "Maren Cole",
     bio: "Home baker chasing the perfect crumb. I measure in grams, not cups, and will absolutely talk your ear off about hydration percentages if you let me. Currently obsessed with laminated dough.",
+    bannerUrl: UNSPLASH("1509440159596-0249088772ff"), // fresh bread
   },
   {
     handle: "dok_writes",
     name: "D. Okafor",
     bio: "I read things so you don't have to, then repost them anyway so you do it yourself. Mostly nonfiction, the occasional deep-dive thread, and whatever my group chat is arguing about that week.",
+    bannerUrl: UNSPLASH("1495446815901-a7297e633e8d"), // library shelves
   },
   {
     handle: "priyanotes",
     name: "Priya N.",
     bio: "Professional thread-follower. I save the good stuff so it doesn't disappear into the feed — recipes, receipts, receipts about recipes. Ask me about my bookmarks folder. Actually, don't.",
+    bannerUrl: UNSPLASH("1517971053567-8bde93bc6a58"), // notebook/desk
   },
   {
     handle: "jweir",
     name: "Jonas Weir",
     bio: "Here for the videos mostly. I will absolutely repost something before finishing it, then feel guilty about it later. Currently trying (and failing) to replicate a dumpling recipe from a video.",
+    bannerUrl: UNSPLASH("1496116218417-1a781b1c416c"), // dumplings
   },
   {
     handle: "harborwire",
     name: "Harbor Wire",
     bio: "City council, zoning fights, school board meetings nobody else shows up to — we're there, we're taking notes, and we're not exaggerating the headline just to get clicks.",
     verifiedNewsProvider: true, // the only seeded account that gets the "Verified news provider" badge
+    bannerUrl: UNSPLASH("1477959858617-67f85cf4f1df"), // city skyline
   },
   {
     handle: "latekitchen",
     name: "Late Kitchen",
     bio: "Recipes that take longer than they should, on purpose. New upload most Sundays. I will not be doing a 5-minute version of anything — if a dish takes three days, you're getting all three.",
+    bannerUrl: UNSPLASH("1556910103-1c02745aae4d"), // kitchen
   },
   {
     handle: "overclocked",
     name: "Overclocked",
     bio: "Benchmarks, teardowns, and the occasional very bad idea involving liquid nitrogen. If a part has a rated limit, my job is finding out what happens past it. Warranty voided so you don't have to.",
+    bannerUrl: UNSPLASH("1591799264318-7e6ef8ddb7ea"), // PC hardware
   },
 ];
 

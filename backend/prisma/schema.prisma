@@ -20,8 +20,11 @@ model User {
   name      String
   avatarUrl String
   // profile customization — data structures only for now, no edit UI until
-  // there's real auth to gate it. bio is the "about me" paragraph.
+  // there's real auth to gate it. bio is the "about me" paragraph. bannerUrl
+  // is the wide header image shown above the hero section on the profile
+  // page; null just means no banner renders (not every seeded user has one).
   bio       String?
+  bannerUrl String?
   // shows a "Verified news provider" subheader on the profile page — set by
   // whatever process approves a News tab posting application (not built
   // yet; see the composer's gate button on the News tab). Not user-editable.

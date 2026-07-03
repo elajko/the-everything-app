@@ -19,6 +19,7 @@ usersRouter.get("/:handle", async (req, res) => {
     handle: user.handle,
     name: user.name,
     avatar: user.avatarUrl,
+    banner: user.bannerUrl || null,
     bio: user.bio || null,
     verifiedNewsProvider: user.verifiedNewsProvider,
     links: user.links.map((l) => ({
