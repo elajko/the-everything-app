@@ -18,7 +18,9 @@ model User {
   id        String   @id @default(cuid())
   handle    String   @unique
   name      String
-  avatarUrl String
+  // null means no picture set — the frontend renders a generic default
+  // silhouette in that case rather than expecting every user to have one.
+  avatarUrl String?
   // profile customization — data structures only for now, no edit UI until
   // there's real auth to gate it. bio is the "about me" paragraph. bannerUrl
   // is the wide header image shown above the hero section on the profile
@@ -39,6 +41,9 @@ model User {
   channelVideos Video[]       @relation("VideoChannel")
   videoLikes    VideoLike[]
   links         ProfileLink[]
+
+  sentMessages     Message[] @relation("MessagesSent")
+  receivedMessages Message[] @relation("MessagesReceived")
 }
 
 // External links on a profile (Patreon, Twitch, YouTube, personal site,
@@ -189,5 +194,27 @@ model Notification {
   postId String
   post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
+  @@index([recipientId, read])
+}
+
+// Private 1:1 direct messages. There's no separate Conversation row — a
+// "conversation" is just every Message between two users, derived on read
+// (see routes/messages.js) rather than modeled, since this is always a
+// simple two-person thread (no group DMs). `read` only matters from the
+// recipient's side; opening a thread marks the other person's messages as
+// read as a side effect.
+model Message {
+  id          String   @id @default(cuid())
+  body        String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  senderId    String
+  sender      User @relation("MessagesSent", fields: [senderId], references: [id])
+
+  recipientId String
+  recipient   User @relation("MessagesReceived", fields: [recipientId], references: [id])
+
+  @@index([senderId, recipientId, createdAt])
   @@index([recipientId, read])
 }

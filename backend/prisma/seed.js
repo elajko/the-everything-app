@@ -10,9 +10,6 @@ import { PrismaClient } from "@prisma/client";
 import { MAX_BIO_LENGTH } from "../src/constants.js";
 const prisma = new PrismaClient();
 
-const AVATAR =
-  "https://i.pinimg.com/736x/e8/39/ee/e839eecefc3b1541928af356b1b83e70.jpg"; // swap for your own hosted image
-
 const TAGS = [
   "Food", "Politics", "Media", "Celebrity", "Adult", "Technology", "Gaming",
   "Art", "Sports", "Music", "Science", "Business", "Finance", "Travel",
@@ -24,6 +21,8 @@ const TAGS = [
 // mostly for visual variety in the demo data (not user-uploaded).
 const UNSPLASH = (id) =>
   `https://images.unsplash.com/photo-${id}?w=1200&q=80&auto=format&fit=crop`;
+const UNSPLASH_AVATAR = (id) =>
+  `https://images.unsplash.com/photo-${id}?w=400&h=400&q=80&auto=format&fit=crop`;
 
 const USERS = [
   {
@@ -31,30 +30,35 @@ const USERS = [
     name: "You",
     bio: "Just poking around every corner of this app — the news, the streams, the socials. If you're reading this, hi. I probably reposted something you made at some point.",
     bannerUrl: UNSPLASH("1519681393784-d120267933ba"), // starfield/galaxy
+    avatarUrl: UNSPLASH_AVATAR("1633332755192-727a05c4013d"),
   },
   {
     handle: "marencole",
     name: "Maren Cole",
     bio: "Home baker chasing the perfect crumb. I measure in grams, not cups, and will absolutely talk your ear off about hydration percentages if you let me. Currently obsessed with laminated dough.",
     bannerUrl: UNSPLASH("1509440159596-0249088772ff"), // fresh bread
+    avatarUrl: UNSPLASH_AVATAR("1494790108377-be9c29b29330"),
   },
   {
     handle: "dok_writes",
     name: "D. Okafor",
     bio: "I read things so you don't have to, then repost them anyway so you do it yourself. Mostly nonfiction, the occasional deep-dive thread, and whatever my group chat is arguing about that week.",
     bannerUrl: UNSPLASH("1495446815901-a7297e633e8d"), // library shelves
+    avatarUrl: UNSPLASH_AVATAR("1500648767791-00dcc994a43e"),
   },
   {
     handle: "priyanotes",
     name: "Priya N.",
     bio: "Professional thread-follower. I save the good stuff so it doesn't disappear into the feed — recipes, receipts, receipts about recipes. Ask me about my bookmarks folder. Actually, don't.",
     bannerUrl: UNSPLASH("1517971053567-8bde93bc6a58"), // notebook/desk
+    avatarUrl: null, // deliberately the one seeded account with no picture — tests the default silhouette
   },
   {
     handle: "jweir",
     name: "Jonas Weir",
     bio: "Here for the videos mostly. I will absolutely repost something before finishing it, then feel guilty about it later. Currently trying (and failing) to replicate a dumpling recipe from a video.",
     bannerUrl: UNSPLASH("1496116218417-1a781b1c416c"), // dumplings
+    avatarUrl: UNSPLASH_AVATAR("1507003211169-0a1dd7228f2d"),
   },
   {
     handle: "harborwire",
@@ -62,18 +66,21 @@ const USERS = [
     bio: "City council, zoning fights, school board meetings nobody else shows up to — we're there, we're taking notes, and we're not exaggerating the headline just to get clicks.",
     verifiedNewsProvider: true, // the only seeded account that gets the "Verified news provider" badge
     bannerUrl: UNSPLASH("1477959858617-67f85cf4f1df"), // city skyline
+    avatarUrl: UNSPLASH_AVATAR("1438761681033-6461ffad8d80"),
   },
   {
     handle: "latekitchen",
     name: "Late Kitchen",
     bio: "Recipes that take longer than they should, on purpose. New upload most Sundays. I will not be doing a 5-minute version of anything — if a dish takes three days, you're getting all three.",
     bannerUrl: UNSPLASH("1556910103-1c02745aae4d"), // kitchen
+    avatarUrl: UNSPLASH_AVATAR("1544005313-94ddf0286df2"),
   },
   {
     handle: "overclocked",
     name: "Overclocked",
     bio: "Benchmarks, teardowns, and the occasional very bad idea involving liquid nitrogen. If a part has a rated limit, my job is finding out what happens past it. Warranty voided so you don't have to.",
     bannerUrl: UNSPLASH("1591799264318-7e6ef8ddb7ea"), // PC hardware
+    avatarUrl: UNSPLASH_AVATAR("1552058544-f2b08422138a"),
   },
 ];
 
@@ -134,7 +141,7 @@ async function main() {
     userRows[u.handle] = await prisma.user.upsert({
       where: { handle: u.handle },
       update: {},
-      create: { ...u, avatarUrl: AVATAR },
+      create: u,
     });
   }
 
@@ -251,6 +258,35 @@ async function main() {
       tags: { create: [{ tagId: tagRows["Food"].id }] },
     },
   });
+
+  // Private messages — a few DM threads with "you" so the sidebar's
+  // conversation previews and the messages page have real data. Each
+  // create() runs sequentially, so createdAt ordering (and thus which
+  // message shows as "most recent") falls out naturally.
+  async function sendMessage(from, to, body) {
+    return prisma.message.create({
+      data: { senderId: userRows[from].id, recipientId: userRows[to].id, body },
+    });
+  }
+
+  await sendMessage("you", "marencole", "hey! that laminated dough post looked incredible");
+  await sendMessage("marencole", "you", "thank you!! took me like 6 tries to get the lamination right");
+  await sendMessage("you", "marencole", "worth it though, the layers are unreal");
+  await sendMessage(
+    "marencole",
+    "you",
+    "honestly the trick was keeping the butter block cold the whole time, I kept losing it in warm kitchens"
+  );
+  await sendMessage("marencole", "you", "anyway lmk if you want the full recipe, happy to send it over");
+
+  await sendMessage("you", "jweir", "did you ever get that dumpling recipe working");
+  await sendMessage("jweir", "you", "not even close lol, mine fell apart in the pot");
+  await prisma.message.updateMany({
+    where: { senderId: userRows["jweir"].id, recipientId: userRows["you"].id },
+    data: { read: true },
+  });
+
+  await sendMessage("harborwire", "you", "thanks for reading, let me know if you ever want to talk to the desk about a tip");
 
   console.log("Done.");
 }
