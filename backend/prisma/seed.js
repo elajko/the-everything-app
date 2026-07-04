@@ -6,9 +6,35 @@
 //
 // Run with: npm run seed
 
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { MAX_BIO_LENGTH } from "../src/constants.js";
+import { processAvatarImage } from "../src/avatarImage.js";
+import { uploadsDir } from "../src/routes/uploads.js";
 const prisma = new PrismaClient();
+
+// seed.js has no incoming request to read a host from (unlike the avatar
+// upload route), so this assumes local dev — matches how the rest of the
+// backend's README/Makefile setup already assumes localhost.
+const LOCAL_BASE_URL = `http://localhost:${process.env.PORT || 4000}`;
+
+// Downloads a source image (e.g. the nekos.best URLs below) and runs it
+// through the exact same resize/crop/convert-to-JPEG pipeline a real
+// avatar upload goes through (see avatarImage.js), so seeded avatars are
+// stored the same way — self-hosted, square, JPEG — as anything a user
+// uploads later, rather than just linking out to wherever the demo image
+// happened to come from.
+async function seedAvatarFromUrl(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch avatar source ${url}: ${res.status}`);
+  const inputBuffer = Buffer.from(await res.arrayBuffer());
+  const jpeg = await processAvatarImage(inputBuffer);
+  const name = `${crypto.randomUUID()}.jpg`;
+  fs.writeFileSync(path.join(uploadsDir, name), jpeg);
+  return `${LOCAL_BASE_URL}/uploads/${name}`;
+}
 
 const TAGS = [
   "Food", "Politics", "Media", "Celebrity", "Adult", "Technology", "Gaming",
@@ -21,8 +47,23 @@ const TAGS = [
 // mostly for visual variety in the demo data (not user-uploaded).
 const UNSPLASH = (id) =>
   `https://images.unsplash.com/photo-${id}?w=1200&q=80&auto=format&fit=crop`;
-const UNSPLASH_AVATAR = (id) =>
-  `https://images.unsplash.com/photo-${id}?w=400&h=400&q=80&auto=format&fit=crop`;
+
+// Avatar sources — anime character art, one fixed image per seeded user
+// (except priyanotes, deliberately), fetched from nekos.best and run
+// through seedAvatarFromUrl() below before being stored. Each URL is a
+// specific image id, not the random-each-request endpoint, so it's the
+// same picture on every reseed.
+const AVATAR_SOURCES = {
+  you: "https://nekos.best/api/v2/waifu/7cdaf516-5718-46ca-9856-7feae74e18b6.png",
+  marencole: "https://nekos.best/api/v2/waifu/e33158c6-a177-4e69-ac0e-9f6b0bf0dbd4.png",
+  dok_writes: "https://nekos.best/api/v2/waifu/6b8a9ef1-a43e-47f0-9023-f11bd096484f.png",
+  jweir: "https://nekos.best/api/v2/waifu/58bac9cd-feaa-49d0-ba82-755f4eb8e10b.png",
+  harborwire: "https://nekos.best/api/v2/waifu/624666a9-4d85-47e9-aeb2-bd46e87257f7.png",
+  latekitchen: "https://nekos.best/api/v2/waifu/f138051f-bb7b-4cfb-bfc2-98606aad1265.png",
+  overclocked: "https://nekos.best/api/v2/waifu/a8c671d8-f9ea-402c-ad48-cebb48ecda51.png",
+  // priyanotes deliberately has no entry — the one seeded account with no
+  // picture, to test the default silhouette fallback
+};
 
 const USERS = [
   {
@@ -30,35 +71,30 @@ const USERS = [
     name: "You",
     bio: "Just poking around every corner of this app — the news, the streams, the socials. If you're reading this, hi. I probably reposted something you made at some point.",
     bannerUrl: UNSPLASH("1519681393784-d120267933ba"), // starfield/galaxy
-    avatarUrl: UNSPLASH_AVATAR("1633332755192-727a05c4013d"),
   },
   {
     handle: "marencole",
     name: "Maren Cole",
     bio: "Home baker chasing the perfect crumb. I measure in grams, not cups, and will absolutely talk your ear off about hydration percentages if you let me. Currently obsessed with laminated dough.",
     bannerUrl: UNSPLASH("1509440159596-0249088772ff"), // fresh bread
-    avatarUrl: UNSPLASH_AVATAR("1494790108377-be9c29b29330"),
   },
   {
     handle: "dok_writes",
     name: "D. Okafor",
     bio: "I read things so you don't have to, then repost them anyway so you do it yourself. Mostly nonfiction, the occasional deep-dive thread, and whatever my group chat is arguing about that week.",
     bannerUrl: UNSPLASH("1495446815901-a7297e633e8d"), // library shelves
-    avatarUrl: UNSPLASH_AVATAR("1500648767791-00dcc994a43e"),
   },
   {
     handle: "priyanotes",
     name: "Priya N.",
     bio: "Professional thread-follower. I save the good stuff so it doesn't disappear into the feed — recipes, receipts, receipts about recipes. Ask me about my bookmarks folder. Actually, don't.",
     bannerUrl: UNSPLASH("1517971053567-8bde93bc6a58"), // notebook/desk
-    avatarUrl: null, // deliberately the one seeded account with no picture — tests the default silhouette
   },
   {
     handle: "jweir",
     name: "Jonas Weir",
     bio: "Here for the videos mostly. I will absolutely repost something before finishing it, then feel guilty about it later. Currently trying (and failing) to replicate a dumpling recipe from a video.",
     bannerUrl: UNSPLASH("1496116218417-1a781b1c416c"), // dumplings
-    avatarUrl: UNSPLASH_AVATAR("1507003211169-0a1dd7228f2d"),
   },
   {
     handle: "harborwire",
@@ -66,21 +102,18 @@ const USERS = [
     bio: "City council, zoning fights, school board meetings nobody else shows up to — we're there, we're taking notes, and we're not exaggerating the headline just to get clicks.",
     verifiedNewsProvider: true, // the only seeded account that gets the "Verified news provider" badge
     bannerUrl: UNSPLASH("1477959858617-67f85cf4f1df"), // city skyline
-    avatarUrl: UNSPLASH_AVATAR("1438761681033-6461ffad8d80"),
   },
   {
     handle: "latekitchen",
     name: "Late Kitchen",
     bio: "Recipes that take longer than they should, on purpose. New upload most Sundays. I will not be doing a 5-minute version of anything — if a dish takes three days, you're getting all three.",
     bannerUrl: UNSPLASH("1556910103-1c02745aae4d"), // kitchen
-    avatarUrl: UNSPLASH_AVATAR("1544005313-94ddf0286df2"),
   },
   {
     handle: "overclocked",
     name: "Overclocked",
     bio: "Benchmarks, teardowns, and the occasional very bad idea involving liquid nitrogen. If a part has a rated limit, my job is finding out what happens past it. Warranty voided so you don't have to.",
     bannerUrl: UNSPLASH("1591799264318-7e6ef8ddb7ea"), // PC hardware
-    avatarUrl: UNSPLASH_AVATAR("1552058544-f2b08422138a"),
   },
 ];
 
@@ -136,13 +169,21 @@ async function main() {
     });
   }
 
+  // findUnique+create (not upsert) so a reseed of an already-populated DB
+  // doesn't re-fetch/re-process every avatar for no reason — unlike the
+  // rest of this seed data, avatars now cost a real network fetch + sharp
+  // pass, not just a cheap DB write.
   const userRows = {};
   for (const u of USERS) {
-    userRows[u.handle] = await prisma.user.upsert({
-      where: { handle: u.handle },
-      update: {},
-      create: u,
-    });
+    const existing = await prisma.user.findUnique({ where: { handle: u.handle } });
+    if (existing) {
+      userRows[u.handle] = existing;
+      continue;
+    }
+    const avatarUrl = AVATAR_SOURCES[u.handle]
+      ? await seedAvatarFromUrl(AVATAR_SOURCES[u.handle])
+      : null;
+    userRows[u.handle] = await prisma.user.create({ data: { ...u, avatarUrl } });
   }
 
   for (const [handle, links] of Object.entries(PROFILE_LINKS)) {

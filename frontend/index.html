@@ -690,6 +690,101 @@
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
   }
 
+  /* ---------- profile edit ---------- */
+  .profile-edit-btn{
+    position:absolute;right:14px;bottom:14px;
+    width:36px;height:36px;border-radius:100px;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,0.55);
+    color:#fff;border:1px solid rgba(255,255,255,0.3);
+    cursor:pointer;
+    transition:background .12s ease;
+  }
+  .profile-edit-btn:hover{background:rgba(0,0,0,0.75);}
+  .profile-edit-btn svg{width:17px;height:17px;}
+
+  .profile-edit-dialog{max-width:480px;}
+  .profile-edit-avatar-row{display:flex;align-items:center;gap:14px;}
+  .profile-edit-avatar-preview{
+    width:72px;height:72px;border-radius:14px;object-fit:cover;flex:none;
+    border:1px solid var(--border-soft);background:var(--tag-bg);
+  }
+  .profile-edit-avatar-btn{
+    border:1px solid var(--border);background:var(--surface);color:var(--ink-soft);
+    font-size:13px;font-weight:700;padding:8px 14px;border-radius:100px;
+    cursor:pointer;transition:border-color .12s ease;
+  }
+  .profile-edit-avatar-btn:hover{border-color:var(--accent);color:var(--ink);}
+  .profile-edit-label{
+    display:flex;align-items:center;justify-content:space-between;
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
+    color:var(--muted);margin-top:4px;
+  }
+  .profile-edit-charcount{text-transform:none;letter-spacing:0;font-weight:600;}
+  .profile-edit-input, .profile-edit-textarea{
+    width:100%;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:var(--surface);
+    color:var(--ink);
+    font-size:14px;
+    font-family:inherit;
+    padding:9px 11px;
+    outline:none;
+  }
+  .profile-edit-input:focus, .profile-edit-textarea:focus{border-color:var(--accent);}
+  .profile-edit-textarea{resize:vertical;min-height:70px;line-height:1.45;}
+
+  .profile-edit-links{display:flex;flex-direction:column;gap:10px;}
+  .profile-edit-link-row{
+    display:flex;flex-direction:column;gap:6px;
+    border:1px solid var(--border-soft);border-radius:8px;padding:10px;
+  }
+  .profile-edit-link-row-top{display:flex;gap:6px;}
+  .profile-edit-link-select{
+    border:1px solid var(--border);background:var(--surface);color:var(--ink);
+    font-size:12.5px;border-radius:6px;padding:6px 8px;outline:none;flex:none;
+  }
+  .profile-edit-link-remove{
+    display:flex;align-items:center;justify-content:center;
+    width:28px;height:28px;border-radius:100px;flex:none;
+    background:var(--tag-bg);border:none;color:var(--muted);cursor:pointer;
+  }
+  .profile-edit-link-remove:hover{color:var(--like);}
+  .profile-edit-link-remove svg{width:12px;height:12px;}
+  .profile-edit-link-input{
+    flex:1;border:1px solid var(--border);background:var(--surface);color:var(--ink);
+    font-size:12.5px;border-radius:6px;padding:6px 9px;outline:none;min-width:0;
+  }
+  .profile-edit-add-link{
+    align-self:flex-start;
+    border:1.5px dashed var(--border);background:none;color:var(--muted);
+    font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:8px;cursor:pointer;
+    transition:border-color .12s ease, color .12s ease;
+  }
+  .profile-edit-add-link:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* ---------- avatar crop ---------- */
+  .avatar-crop-viewport{
+    width:280px;height:280px;
+    margin:0 auto;
+    border-radius:14px;
+    overflow:hidden;
+    position:relative;
+    background:#000;
+    cursor:grab;
+    touch-action:none;
+  }
+  .avatar-crop-viewport:active{cursor:grabbing;}
+  .avatar-crop-viewport img{
+    position:absolute;
+    user-select:none;
+    -webkit-user-drag:none;
+    pointer-events:none;
+  }
+  .avatar-crop-zoom{width:100%;accent-color:var(--accent);}
+  .avatar-crop-hint{text-align:center;font-size:12px;color:var(--muted);margin-top:2px;}
+
   /* ---------- section tabs ---------- */
   .tabs{
     display:flex;
@@ -1218,14 +1313,18 @@
 </nav>
 <div class="toast" id="toast"></div>
 <div class="modal-overlay" id="repostModal"></div>
+<div class="modal-overlay" id="profileEditModal"></div>
 
 <script>
 (function(){
 
 // simple silhouette avatar shown for accounts with no avatarUrl set — not a
 // hosted image, just an inline SVG data URI, so it always renders regardless
-// of network conditions.
-const DEFAULT_AVATAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#AEB4BC"/><circle cx="50" cy="40" r="19" fill="#F4F5F7"/><path d="M50 62c-24 0-42 13-42 32v6h84v-6c0-19-18-32-42-32z" fill="#F4F5F7"/></svg>`;
+// of network conditions. Background is a square filling the whole viewBox
+// (not a circle) since avatars render with all sorts of border-radius
+// across the app — a circular disc left the corners transparent whenever
+// an avatar wasn't cropped to a full circle, showing whatever was behind it.
+const DEFAULT_AVATAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#AEB4BC"/><circle cx="50" cy="40" r="19" fill="#F4F5F7"/><path d="M50 62c-24 0-42 13-42 32v6h84v-6c0-19-18-32-42-32z" fill="#F4F5F7"/></svg>`;
 const DEFAULT_AVATAR = `data:image/svg+xml,${encodeURIComponent(DEFAULT_AVATAR_SVG)}`;
 
 let TAGS = []; // populated from GET /api/tags
@@ -1294,6 +1393,23 @@ function normalizeVideo(v){
 function normalizeProfileUser(u){
   if(!u) return null;
   return {...u, avatar: u.avatar || DEFAULT_AVATAR};
+}
+
+// which seeded account the frontend is "logged in" as (see currentUser.js
+// backend-side — there's no real auth) — fetched once at boot, used only
+// to decide whether to show owner-only UI (the profile edit icon)
+let currentUserHandle = null;
+async function fetchCurrentUser(){
+  try{
+    const res = await fetch(`${API_BASE}/users/me`);
+    const data = await res.json();
+    currentUserHandle = data.handle;
+    // a direct #user/you permalink load can render the profile before this
+    // resolves — re-render so the edit icon still shows up in that case
+    if(view === 'profile') renderMain();
+  }catch(e){
+    console.error(e);
+  }
 }
 
 async function fetchTags(){
@@ -1702,6 +1818,7 @@ const tabsEl = document.getElementById('tabs');
 const subTabsEl = document.getElementById('subTabs');
 const composerEl = document.getElementById('composer');
 const repostModalEl = document.getElementById('repostModal');
+const profileEditModalEl = document.getElementById('profileEditModal');
 const searchRowEl = document.querySelector('.search-row');
 const searchComboEl = document.getElementById('searchCombo');
 const searchFieldEl = document.getElementById('searchField');
@@ -2077,6 +2194,22 @@ let repostBody = "";
 let repostFile = null; // { name, type, dataUrl } | null
 let repostSubmitting = false;
 
+// ---- profile edit modal ----
+const MAX_BIO_LENGTH = 280; // mirrors the backend's constants.js — no shared module in this static-file setup
+let profileEditOpen = false;
+let profileEditName = "";
+let profileEditBio = "";
+let profileEditLinks = []; // [{platform,label,url,description}]
+let profileEditSaving = false;
+
+// avatar crop — a second sub-view inside the same modal, shown between
+// picking a file and actually uploading it
+let avatarCropFile = null; // {dataUrl, naturalWidth, naturalHeight} once a photo is picked
+let avatarCropZoom = 1;
+let avatarCropPan = {x: 0, y: 0};
+let avatarUploading = false;
+const AVATAR_CROP_VIEWPORT = 280; // px — must match .avatar-crop-viewport's CSS size
+
 function openRepostModal(target, kind){
   repostTarget = target;
   repostKind = kind;
@@ -2180,6 +2313,325 @@ repostModalEl.addEventListener('click', (e)=>{
 
 document.addEventListener('keydown', (e)=>{
   if(e.key === 'Escape' && repostModalOpen) closeRepostModal();
+});
+
+// ---- profile edit modal ----
+// Owner-only (see the edit icon's currentUserHandle check in
+// renderProfilePage). Two sub-views share one modal: the main form
+// (name/bio/links) and, nested inside it, the avatar crop view — picking
+// a file swaps to the crop view; confirming or cancelling swaps back.
+const LINK_PLATFORM_OPTIONS = ['twitch','youtube','patreon','twitter','instagram','tiktok','website'];
+
+function openProfileEdit(){
+  if(!detailUser) return;
+  profileEditOpen = true;
+  profileEditName = detailUser.name;
+  profileEditBio = detailUser.bio || "";
+  profileEditLinks = detailUser.links.map(l=>({platform: l.platform, label: l.label, url: l.url, description: l.description || ""}));
+  profileEditSaving = false;
+  avatarCropFile = null;
+  avatarUploading = false;
+  renderProfileEditModal();
+}
+function closeProfileEdit(){
+  profileEditOpen = false;
+  avatarCropFile = null;
+  renderProfileEditModal();
+}
+function addProfileEditLink(){
+  profileEditLinks.push({platform: null, label: "", url: "", description: ""});
+  renderProfileEditModal();
+}
+function removeProfileEditLink(index){
+  profileEditLinks.splice(index, 1);
+  renderProfileEditModal();
+}
+
+function renderProfileEditLinkRow(link, index){
+  return `
+    <div class="profile-edit-link-row">
+      <div class="profile-edit-link-row-top">
+        <select class="profile-edit-link-select" data-link-field="platform" data-link-index="${index}">
+          <option value="">No icon</option>
+          ${LINK_PLATFORM_OPTIONS.map(p=>`<option value="${p}" ${link.platform===p?'selected':''}>${p}</option>`).join('')}
+        </select>
+        <input type="text" class="profile-edit-link-input" data-link-field="label" data-link-index="${index}" placeholder="Label (e.g. Twitch)" value="${attr(link.label)}"/>
+        <button type="button" class="profile-edit-link-remove" data-action="remove-profile-link" data-link-index="${index}" aria-label="Remove link">${ICON_X}</button>
+      </div>
+      <input type="text" class="profile-edit-link-input" data-link-field="url" data-link-index="${index}" placeholder="https://…" value="${attr(link.url)}"/>
+      <input type="text" class="profile-edit-link-input" data-link-field="description" data-link-index="${index}" placeholder="Description (optional)" value="${attr(link.description)}"/>
+    </div>`;
+}
+
+function renderProfileEditModal(){
+  if(!profileEditOpen){
+    profileEditModalEl.classList.remove('open');
+    profileEditModalEl.innerHTML = '';
+    return;
+  }
+  profileEditModalEl.classList.add('open');
+
+  if(avatarCropFile){
+    renderAvatarCropView();
+    return;
+  }
+
+  const user = detailUser;
+  profileEditModalEl.innerHTML = `
+    <div class="modal-dialog profile-edit-dialog" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <div class="modal-title">Edit profile</div>
+        <button type="button" class="modal-close" data-action="close-profile-edit" aria-label="Close">${ICON_X}</button>
+      </div>
+
+      <div class="profile-edit-avatar-row">
+        <img class="profile-edit-avatar-preview" src="${user.avatar}"/>
+        <button type="button" class="profile-edit-avatar-btn" data-action="pick-avatar-file">Change photo</button>
+        <input type="file" id="avatarFileInput" accept="image/*" hidden/>
+      </div>
+
+      <div>
+        <div class="profile-edit-label">Name</div>
+        <input type="text" class="profile-edit-input" id="profileEditNameInput" value="${attr(profileEditName)}"/>
+      </div>
+
+      <div>
+        <div class="profile-edit-label">Bio <span class="profile-edit-charcount">${profileEditBio.length}/${MAX_BIO_LENGTH}</span></div>
+        <textarea class="profile-edit-textarea" id="profileEditBioInput" maxlength="${MAX_BIO_LENGTH}">${escapeHtml(profileEditBio)}</textarea>
+      </div>
+
+      <div>
+        <div class="profile-edit-label">Links</div>
+        <div class="profile-edit-links" id="profileEditLinksList">
+          ${profileEditLinks.map(renderProfileEditLinkRow).join('')}
+        </div>
+        <button type="button" class="profile-edit-add-link" data-action="add-profile-link" style="margin-top:8px;">+ Add link</button>
+      </div>
+
+      <div class="composer-actions">
+        <button type="button" class="composer-btn" data-action="close-profile-edit">Cancel</button>
+        <button type="button" class="composer-btn primary" id="profileEditSaveBtn" data-action="save-profile-edit" ${profileEditSaving?'disabled':''}>${profileEditSaving?'Saving…':'Save'}</button>
+      </div>
+    </div>`;
+
+  document.getElementById('profileEditNameInput').addEventListener('input', (e)=>{ profileEditName = e.target.value; });
+
+  const bioInput = document.getElementById('profileEditBioInput');
+  bioInput.addEventListener('input', (e)=>{
+    profileEditBio = e.target.value;
+    const counter = profileEditModalEl.querySelector('.profile-edit-charcount');
+    if(counter) counter.textContent = `${profileEditBio.length}/${MAX_BIO_LENGTH}`;
+  });
+
+  document.getElementById('avatarFileInput').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    if(file.size > MAX_UPLOAD_BYTES){
+      showToast('That file is too large (20MB max)');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        avatarCropFile = {dataUrl: reader.result, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight};
+        avatarCropZoom = 1;
+        avatarCropPan = {x: 0, y: 0};
+        renderProfileEditModal();
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById('profileEditLinksList').querySelectorAll('[data-link-field]').forEach(el=>{
+    const index = parseInt(el.getAttribute('data-link-index'), 10);
+    const field = el.getAttribute('data-link-field');
+    el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', (e)=>{
+      profileEditLinks[index][field] = field === 'platform' ? (e.target.value || null) : e.target.value;
+    });
+  });
+}
+
+// pan/zoom crop math — the image is displayed at baseScale (the scale at
+// which its SHORTER side exactly fills the square viewport) times the
+// zoom slider, so it always fully covers the viewport regardless of pan;
+// pan is clamped so the image can never reveal empty space at the edges
+function computeCropGeometry(){
+  const {naturalWidth, naturalHeight} = avatarCropFile;
+  const baseScale = AVATAR_CROP_VIEWPORT / Math.min(naturalWidth, naturalHeight);
+  const totalScale = baseScale * avatarCropZoom;
+  const displayedW = naturalWidth * totalScale;
+  const displayedH = naturalHeight * totalScale;
+  const maxPanX = Math.max(0, (displayedW - AVATAR_CROP_VIEWPORT) / 2);
+  const maxPanY = Math.max(0, (displayedH - AVATAR_CROP_VIEWPORT) / 2);
+  return {totalScale, displayedW, displayedH, maxPanX, maxPanY};
+}
+function clampCropPan(){
+  const {maxPanX, maxPanY} = computeCropGeometry();
+  avatarCropPan.x = Math.max(-maxPanX, Math.min(maxPanX, avatarCropPan.x));
+  avatarCropPan.y = Math.max(-maxPanY, Math.min(maxPanY, avatarCropPan.y));
+}
+function applyCropImageStyle(){
+  const img = document.getElementById('avatarCropImage');
+  if(!img) return;
+  const {displayedW, displayedH} = computeCropGeometry();
+  img.style.width = `${displayedW}px`;
+  img.style.height = `${displayedH}px`;
+  img.style.left = `${(AVATAR_CROP_VIEWPORT - displayedW)/2 + avatarCropPan.x}px`;
+  img.style.top = `${(AVATAR_CROP_VIEWPORT - displayedH)/2 + avatarCropPan.y}px`;
+}
+
+function renderAvatarCropView(){
+  profileEditModalEl.innerHTML = `
+    <div class="modal-dialog profile-edit-dialog" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <div class="modal-title">Crop your photo</div>
+        <button type="button" class="modal-close" data-action="cancel-avatar-crop" aria-label="Close">${ICON_X}</button>
+      </div>
+      <div class="avatar-crop-viewport" id="avatarCropViewport">
+        <img id="avatarCropImage" src="${avatarCropFile.dataUrl}"/>
+      </div>
+      <input type="range" class="avatar-crop-zoom" id="avatarCropZoomSlider" min="1" max="3" step="0.01" value="${avatarCropZoom}"/>
+      <div class="avatar-crop-hint">Drag to reposition, use the slider to zoom</div>
+      <div class="composer-actions">
+        <button type="button" class="composer-btn" data-action="cancel-avatar-crop">Cancel</button>
+        <button type="button" class="composer-btn primary" id="avatarCropConfirmBtn" data-action="confirm-avatar-crop" ${avatarUploading?'disabled':''}>${avatarUploading?'Uploading…':'Use photo'}</button>
+      </div>
+    </div>`;
+
+  applyCropImageStyle();
+
+  const viewport = document.getElementById('avatarCropViewport');
+  let dragState = null;
+  viewport.addEventListener('pointerdown', (e)=>{
+    dragState = {startX: e.clientX, startY: e.clientY, startPanX: avatarCropPan.x, startPanY: avatarCropPan.y};
+    viewport.setPointerCapture(e.pointerId);
+  });
+  viewport.addEventListener('pointermove', (e)=>{
+    if(!dragState) return;
+    avatarCropPan.x = dragState.startPanX + (e.clientX - dragState.startX);
+    avatarCropPan.y = dragState.startPanY + (e.clientY - dragState.startY);
+    clampCropPan();
+    applyCropImageStyle();
+  });
+  viewport.addEventListener('pointerup', ()=>{ dragState = null; });
+  viewport.addEventListener('pointercancel', ()=>{ dragState = null; });
+
+  document.getElementById('avatarCropZoomSlider').addEventListener('input', (e)=>{
+    avatarCropZoom = parseFloat(e.target.value);
+    clampCropPan();
+    applyCropImageStyle();
+  });
+}
+
+function renderCroppedAvatarDataUrl(){
+  // 400 mirrors the backend's own AVATAR_SIZE (avatarImage.js) — exporting
+  // near that size keeps the upload small. The backend still authoritatively
+  // resizes/converts regardless, this is just to avoid uploading a full
+  // multi-megapixel original for no reason.
+  const OUTPUT_SIZE = 400;
+  const {totalScale, displayedW, displayedH} = computeCropGeometry();
+  const originX = (AVATAR_CROP_VIEWPORT - displayedW) / 2 + avatarCropPan.x;
+  const originY = (AVATAR_CROP_VIEWPORT - displayedH) / 2 + avatarCropPan.y;
+  const srcX = -originX / totalScale;
+  const srcY = -originY / totalScale;
+  const srcSize = AVATAR_CROP_VIEWPORT / totalScale;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = OUTPUT_SIZE;
+  canvas.height = OUTPUT_SIZE;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(document.getElementById('avatarCropImage'), srcX, srcY, srcSize, srcSize, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+  return canvas.toDataURL('image/jpeg', 0.92);
+}
+
+async function confirmAvatarCrop(){
+  if(avatarUploading || !avatarCropFile) return;
+  avatarUploading = true;
+  const btn = document.getElementById('avatarCropConfirmBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Uploading…'; }
+
+  try{
+    const dataUrl = renderCroppedAvatarDataUrl();
+    const res = await fetch(`${API_BASE}/users/me/avatar`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({dataBase64: dataUrl.split(',')[1]}),
+    });
+    if(!res.ok) throw new Error('Failed to upload avatar');
+    const data = await res.json();
+    if(detailUser) detailUser.avatar = data.avatar;
+    avatarCropFile = null;
+    avatarUploading = false;
+    renderProfileEditModal(); // back to the main form, now showing the new avatar
+    renderMain(); // the profile page behind the modal should pick it up too
+    showToast('Profile picture updated');
+  }catch(e){
+    console.error(e);
+    avatarUploading = false;
+    showToast('Could not upload that photo');
+    renderAvatarCropView(); // stay on the crop view, re-enabling the button
+  }
+}
+
+async function saveProfileEdit(){
+  if(profileEditSaving) return;
+  if(!profileEditName.trim()){
+    showToast('Name cannot be empty');
+    return;
+  }
+  for(const l of profileEditLinks){
+    if(!l.label.trim() || !l.url.trim()){
+      showToast('Each link needs a label and a URL');
+      return;
+    }
+  }
+  profileEditSaving = true;
+  const btn = document.getElementById('profileEditSaveBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
+  try{
+    const res = await fetch(`${API_BASE}/users/me`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name: profileEditName.trim(), bio: profileEditBio.trim(), links: profileEditLinks}),
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.error || 'Failed to save');
+    }
+    const updated = await res.json();
+    if(detailUser && detailUser.handle === updated.handle){
+      Object.assign(detailUser, updated, {avatar: updated.avatar || DEFAULT_AVATAR});
+    }
+    profileEditOpen = false;
+    profileEditSaving = false;
+    renderProfileEditModal();
+    renderMain();
+    showToast('Profile updated');
+  }catch(e){
+    console.error(e);
+    profileEditSaving = false;
+    showToast(e.message || 'Could not save profile');
+    if(btn){ btn.disabled = false; btn.textContent = 'Save'; }
+  }
+}
+
+profileEditModalEl.addEventListener('click', (e)=>{
+  if(e.target === profileEditModalEl){ closeProfileEdit(); return; }
+  if(e.target.closest('[data-action="close-profile-edit"]')){ closeProfileEdit(); return; }
+  if(e.target.closest('[data-action="pick-avatar-file"]')){ document.getElementById('avatarFileInput').click(); return; }
+  if(e.target.closest('[data-action="add-profile-link"]')){ addProfileEditLink(); return; }
+  const removeBtn = e.target.closest('[data-action="remove-profile-link"]');
+  if(removeBtn){ removeProfileEditLink(parseInt(removeBtn.getAttribute('data-link-index'), 10)); return; }
+  if(e.target.closest('[data-action="save-profile-edit"]')){ saveProfileEdit(); return; }
+  if(e.target.closest('[data-action="cancel-avatar-crop"]')){ avatarCropFile = null; renderProfileEditModal(); return; }
+  if(e.target.closest('[data-action="confirm-avatar-crop"]')){ confirmAvatarCrop(); return; }
+});
+
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape' && profileEditOpen) closeProfileEdit();
 });
 
 async function submitRepostModal(){
@@ -2451,6 +2903,7 @@ const ICON_BACK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const ICON_SHARE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.2M8.6 13.4l6.8 3.2"/></svg>`;
 const ICON_PLAY = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>`;
 const ICON_CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>`;
+const ICON_PENCIL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
 
 // Affiliate programs an account can register for (multiple at once — e.g.
 // a news outlet that also runs its own streaming studio). Buttons here are
@@ -2651,6 +3104,9 @@ function renderProfilePage(user){
             <div class="profile-banner-name">${escapeHtml(user.name)}</div>
           </div>
         </div>
+        ${user.handle === currentUserHandle ? `
+          <button type="button" class="profile-edit-btn" data-action="open-profile-edit" aria-label="Edit profile" title="Edit profile">${ICON_PENCIL}</button>
+        ` : ''}
       </div>
       <div class="profile-hero">
         <div class="profile-hero-topline">
@@ -3099,6 +3555,10 @@ feedbodyEl.addEventListener('click', (e)=>{
     showToast("Applications aren't open yet");
     return;
   }
+  if(e.target.closest('[data-action="open-profile-edit"]')){
+    openProfileEdit();
+    return;
+  }
   const dmItem = e.target.closest('[data-dm-handle]');
   if(dmItem){
     openMessageThread(dmItem.getAttribute('data-dm-handle'));
@@ -3240,6 +3700,7 @@ renderSearchField();
 renderTagDropdown();
 applyTheme();
 fetchTags();
+fetchCurrentUser();
 
 (async function initFromUrl(){
   const mp = location.hash.match(/^#post\/(.+)$/);

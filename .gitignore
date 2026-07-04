@@ -8,3 +8,4 @@ backend/uploads/*
 .DS_Store
 everything-app.zip
 .claude/settings.local.json
+x.png
