@@ -8,22 +8,23 @@
 <body>
 <style>
   :root{
-    --paper:#F6F5F1;
+    --paper:#FFFFFF;
     --surface:#FFFFFF;
-    --ink:#1B1E23;
+    --ink:#0F1419;
     --ink-soft:#4B5157;
-    --muted:#5B6067;
+    --muted:#536471;
     --border:#E4E1DA;
-    --border-soft:#EDEBE5;
-    --tag-bg:#EEEDE7;
-    --tag-ink:#565B52;
-    --accent:#2954FF;
+    --border-soft:#EFF3F4;
+    --tag-bg:#F0F3F6;
+    --tag-ink:#57636C;
+    --accent:#1D9BF0;
     --accent-soft:#E7EBFF;
     --accent2:#A67C2E;
     --accent2-soft:#F3ECDD;
-    --like:#B5433A;
-    --topbar-bg:rgba(246,245,241,0.94);
-    --hover-bg:#FCFCFA;
+    --like:#F91880;
+    --like-soft:rgba(249,24,128,0.1);
+    --topbar-bg:rgba(255,255,255,0.92);
+    --hover-bg:rgba(15,20,25,0.06);
     --radius:8px;
     --shell-width:640px;      /* Social/News column width, once space allows */
     --shell-width-wide:780px; /* Streaming column width, once space allows */
@@ -48,21 +49,22 @@
   }
   html[data-theme="dark"]{
     --paper:#000000;
-    --surface:#121212;
-    --ink:#F2F2F2;
+    --surface:#000000;
+    --ink:#E7E9EA;
     --ink-soft:#C7C7C7;
-    --muted:#8A8A8A;
-    --border:#2A2A2A;
+    --muted:#71767B;
+    --border:#2F3336;
     --border-soft:#1E1E1E;
     --tag-bg:#1C1C1C;
     --tag-ink:#B5B5B5;
-    --accent:#6690FF;
+    --accent:#1D9BF0;
     --accent-soft:#1A2440;
     --accent2:#D3A15A;
     --accent2-soft:#2C2519;
-    --like:#E0685D;
-    --topbar-bg:rgba(0,0,0,0.92);
-    --hover-bg:#161616;
+    --like:#F91880;
+    --like-soft:rgba(249,24,128,0.1);
+    --topbar-bg:rgba(0,0,0,0.75);
+    --hover-bg:rgba(231,233,234,0.1);
   }
   .feedapp ::selection{background:var(--accent-soft);}
 
@@ -79,7 +81,7 @@
     display:flex;
     align-items:flex-start;
     gap:32px;
-    padding:24px 16px 0 16px;
+    padding:0 16px 0 16px;
     flex:0 1 calc(var(--sidebar-width) + 32px + var(--shell-width) + 32px + var(--sidebar-right-width) + 32px);
     min-width:0;
     transition:flex-basis .18s ease;
@@ -90,6 +92,7 @@
     flex:none;
     position:sticky;
     top:20px;
+    margin-top:24px; /* the shell's top gap moved from .applayout's padding into .shell's own padding-top (so the border wraps it too) — this replaces that gap for the sidebar, which isn't bordered anyway */
     display:flex;
     flex-direction:column;
     gap:4px;
@@ -100,28 +103,23 @@
   .sidebar-right{
     width:var(--sidebar-right-width);flex:none;
     position:sticky;top:20px;
+    margin-top:24px; /* see .sidebar's own margin-top comment */
     display:flex;flex-direction:column;gap:14px;
   }
-  .dm-nav-btn{
-    display:flex;align-items:center;gap:9px;
-    width:100%;
-    background:var(--accent-soft);
-    color:var(--accent);
-    border:1px solid transparent;
-    border-radius:10px;
-    padding:12px 14px;
-    font-size:15.5px;
-    font-weight:700;
-    cursor:pointer;
-    transition:border-color .12s ease;
+  .dm-preview-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;padding:2px 0 4px 0;}
+  .dm-preview-card-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px 8px 14px;}
+  .dm-preview-card-title{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:800;color:var(--ink);}
+  .dm-preview-card-title svg{width:19px;height:19px;flex:none;}
+  .dm-preview-card-showall{
+    font-size:13px;font-weight:700;color:var(--accent);
+    cursor:pointer;white-space:nowrap;flex:none;
   }
-  .dm-nav-btn:hover{border-color:var(--accent);}
-  .dm-nav-btn svg{width:18px;height:18px;flex:none;}
+  .dm-preview-card-showall:hover{text-decoration:underline;}
   .dm-preview-list{display:flex;flex-direction:column;gap:1px;}
   .dm-preview-item{
     display:flex;align-items:center;gap:9px;
-    padding:8px;
-    border-radius:8px;
+    padding:8px 14px;
+    border-radius:0;
     cursor:pointer;
     transition:background .12s ease;
   }
@@ -246,21 +244,36 @@
   .sidebar-settings-btn{
     display:flex;
     align-items:center;
-    gap:11px;
+    gap:15px;
     width:100%;
     background:none;
     border:none;
-    padding:10px;
-    border-radius:8px;
-    font-size:16px;
-    font-weight:600;
-    color:var(--ink-soft);
+    padding:12px 14px;
+    border-radius:100px;
+    font-size:19px;
+    font-weight:500;
+    color:var(--ink);
     cursor:pointer;
     text-align:left;
     transition:background .12s ease, color .12s ease;
   }
-  .sidebar-settings-btn:hover{background:var(--hover-bg);color:var(--ink);}
-  .sidebar-settings-btn svg{width:19px;height:19px;flex:none;}
+  .sidebar-settings-btn:hover{background:var(--hover-bg);}
+  .sidebar-settings-btn svg{width:24px;height:24px;flex:none;}
+  .sidebar-post-btn{
+    display:flex;align-items:center;justify-content:center;
+    width:100%;
+    margin-top:8px;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:100px;
+    padding:14px;
+    font-size:16px;
+    font-weight:800;
+    cursor:pointer;
+    transition:opacity .12s ease;
+  }
+  .sidebar-post-btn:hover{opacity:0.9;}
   .sidebar-backdrop{display:none;}
   .menu-btn{
     display:none;
@@ -285,6 +298,8 @@
     .brand-text{display:none;}
     .sidebar-settings-btn{justify-content:center;}
     .sidebar-settings-btn span{display:none;}
+    .sidebar-post-btn span{display:none;}
+    .sidebar-post-btn::after{content:'+';font-size:26px;line-height:1;}
   }
 
   /* mobile-only "close search" chevron, to the left of the search box —
@@ -324,8 +339,15 @@
   .mobile-bottombar-btn svg{width:23px;height:23px;}
 
   @media (max-width: 900px){
-    .applayout{padding:12px 16px 0 16px;}
+    .applayout{padding:0 16px 0 16px;}
     .sidebar-right{display:none;}
+    /* ".applayout .shell" (not just ".shell") to outrank the base .shell
+       rule declared later in the stylesheet — same reasoning as the
+       ".shell .search-row" rule above. */
+    .applayout .shell{border-left:none;border-right:none;}
+    /* smaller top gap on mobile — same "outrank via extra specificity"
+       reasoning, this time against .topbar's own padding declared later */
+    .applayout .topbar{padding-top:12px;}
     /* search box and composer are hidden by default on mobile — each has
        a bottom-bar button that adds the matching .show-mobile-* class to
        .shell to reveal it (see the mobile bottom bar's click handler).
@@ -343,6 +365,7 @@
       position:fixed;
       top:0;left:0;bottom:0;
       width:250px;
+      margin-top:0; /* it's a full-height drawer here, not sticky nav — cancel the base rule's margin-top */
       background:var(--surface);
       border-right:1px solid var(--border);
       padding:16px 10px;
@@ -379,6 +402,14 @@
     display:flex;
     flex-direction:column;
     transition:flex-basis .18s ease;
+    border-left:1px solid var(--border);
+    border-right:1px solid var(--border);
+    /* this used to be .applayout's padding-top — moved here (instead) so
+       the top gap is part of the bordered box, not a strip above it with
+       no border that scrolls away and leaves the border looking like it
+       starts partway down the page. The gap itself now lives in .topbar's
+       own padding-top instead of here — see its comment — so it's exactly
+       0, just enough for the border to reach the very top. */
   }
   .applayout.wide .shell{flex-basis:var(--shell-width-wide);}
 
@@ -390,7 +421,11 @@
     background:var(--topbar-bg);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--border);
-    padding:0 16px 0 16px;
+    /* the top gap above the search bar lives here (not on .shell) — this
+       element is what's actually sticky, and its own background+blur is
+       what should be visible in that gap once scrolled, not raw feed
+       content showing through nothing */
+    padding:24px 16px 0 16px;
   }
   .search-combo{
     flex:1;
@@ -407,15 +442,15 @@
     align-items:center;
     gap:6px;
     width:100%;
-    background:var(--surface);
-    border:1px solid var(--border);
-    border-radius:8px;
+    background:var(--tag-bg);
+    border:1px solid transparent;
+    border-radius:100px;
     padding:8px 10px 8px 36px;
     min-height:38px;
     cursor:text;
     transition:border-color .12s ease, background .12s ease;
   }
-  .search-field:focus-within{border-color:var(--accent);background:var(--accent-soft);}
+  .search-field:focus-within{border-color:var(--accent);background:var(--surface);}
   .search-field input{
     flex:1;
     min-width:50px;
@@ -866,7 +901,7 @@
   }
   .post-head{display:flex;align-items:flex-start;gap:10px;}
   .avatar{
-    width:38px;height:38px;border-radius:8px;object-fit:cover;flex:none;
+    width:38px;height:38px;border-radius:100px;object-fit:cover;flex:none;
     background:var(--tag-bg);border:1px solid var(--border-soft);
   }
   .post-headtext{flex:1;min-width:0;}
@@ -929,10 +964,21 @@
   .actbtn{
     display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;
     color:var(--muted);font-size:13.5px;font-family:'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
-    padding:3px 4px;border-radius:5px;transition:color .12s ease;
+    padding:0;border-radius:5px;transition:color .12s ease;
   }
   .actbtn svg{width:14px;height:14px;transition:transform .15s ease;}
-  .actbtn:hover{color:var(--ink);}
+  .actbtn-icon{
+    display:flex;align-items:center;justify-content:center;
+    width:28px;height:28px;border-radius:100px;flex:none;
+    transition:background .12s ease;
+  }
+  .actbtn:hover .actbtn-icon{background:var(--hover-bg);}
+  .actbtn.like:hover{color:var(--like);}
+  .actbtn.like:hover .actbtn-icon{background:var(--like-soft);}
+  .actbtn.repost:hover{color:var(--accent2);}
+  .actbtn.repost:hover .actbtn-icon{background:var(--accent2-soft);}
+  .actbtn.share:hover{color:var(--accent);}
+  .actbtn.share:hover .actbtn-icon{background:var(--accent-soft);}
   .actbtn.like.active{color:var(--like);}
   .actbtn.like.active svg{fill:var(--like);transform:scale(1.08);}
   .actbtn.repost.active{color:var(--accent2);}
@@ -948,7 +994,7 @@
   .embed .embed .embed .embed-flag{color:var(--muted);}
   .embed-flag svg{width:10px;height:10px;}
   .embed .post-tags{margin-bottom:5px;}
-  .embed .avatar{width:26px;height:26px;border-radius:6px;}
+  .embed .avatar{width:26px;height:26px;border-radius:100px;}
   .embed .displayname{font-size:14px;}
   .embed .handle{font-size:12.5px;}
   .embed .postdate{font-size:12px;}
@@ -1260,6 +1306,9 @@
           </div>
         </div>
       </div>
+      <button type="button" class="sidebar-post-btn" id="sidebarPostBtn" aria-label="Post" title="Post">
+        <span>Post</span>
+      </button>
     </aside>
     <div class="shell" id="shell">
       <div class="topbar">
@@ -1286,11 +1335,16 @@
       <div class="loadingrow" id="loadingRow" style="display:none;">loading more…</div>
     </div>
     <aside class="sidebar-right">
-      <button class="dm-nav-btn" id="dmNavBtn" data-action="open-messages">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-        <span>Private messaging</span>
-      </button>
-      <div class="dm-preview-list" id="dmPreviewList"></div>
+      <div class="dm-preview-card">
+        <div class="dm-preview-card-header">
+          <div class="dm-preview-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            Messages
+          </div>
+          <span class="dm-preview-card-showall" id="dmShowAllLink" data-action="open-messages">Show all</span>
+        </div>
+        <div class="dm-preview-list" id="dmPreviewList"></div>
+      </div>
     </aside>
   </div>
 </div>
@@ -2714,9 +2768,19 @@ affiliateBtn.addEventListener('click', ()=>{
   openAffiliatePage();
 });
 
-const dmNavBtn = document.getElementById('dmNavBtn');
+// desktop's always-visible answer to the mobile bottom bar's compose
+// button — reuses the exact same open logic (news-tab guard, mobile-panel
+// classes are harmless no-ops outside that breakpoint) rather than a
+// separate code path
+document.getElementById('sidebarPostBtn').addEventListener('click', ()=>{
+  closeSidebar();
+  if(view !== 'feed') closeDetail({push: true});
+  openMobileComposer();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+});
+
 const dmPreviewListEl = document.getElementById('dmPreviewList');
-dmNavBtn.addEventListener('click', ()=>{
+document.getElementById('dmShowAllLink').addEventListener('click', ()=>{
   closeSidebar();
   openMessagesPage();
 });
@@ -2959,17 +3023,17 @@ const PLATFORM_ICONS = {
 };
 
 function renderShareBtn(kind, id){
-  return `<button class="actbtn share" data-action="share" data-kind="${kind}" data-id="${id}" title="Copy link">${ICON_SHARE}<span>Share</span></button>`;
+  return `<button class="actbtn share" data-action="share" data-kind="${kind}" data-id="${id}" title="Copy link"><span class="actbtn-icon">${ICON_SHARE}</span><span>Share</span></button>`;
 }
 
 function renderActionBar(kind, item, includeShare){
   return `
     <div class="actionbar">
       <button class="actbtn like ${item.liked?'active':''}" data-action="like" data-kind="${kind}" data-id="${item.id}">
-        ${ICON_HEART}<span>${item.likes}</span>
+        <span class="actbtn-icon">${ICON_HEART}</span><span>${item.likes}</span>
       </button>
       <button class="actbtn repost" data-action="repost" data-kind="${kind}" data-id="${item.id}">
-        ${ICON_REPOST}<span>${item.reposts}</span>
+        <span class="actbtn-icon">${ICON_REPOST}</span><span>${item.reposts}</span>
       </button>
       ${includeShare ? renderShareBtn(kind, item.id) : ''}
     </div>`;
