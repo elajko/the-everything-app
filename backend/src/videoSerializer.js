@@ -8,7 +8,7 @@ export function videoInclude(userId) {
     channel: true,
     tags: { include: { tag: true } },
     likes: { where: { userId } },
-    _count: { select: { likes: true, repostedBy: true } },
+    _count: { select: { likes: true, repostedBy: true, replies: true } },
   };
 }
 
@@ -29,6 +29,7 @@ export function serializeVideo(video) {
     tags: video.tags.map((vt) => vt.tag.name),
     likes: video._count.likes,
     reposts: video._count.repostedBy,
+    replies: video._count.replies,
     liked: video.likes.length > 0,
   };
 }

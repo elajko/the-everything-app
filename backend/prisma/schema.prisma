@@ -112,12 +112,29 @@ model Post {
   repostOfVideoId String?
   repostOfVideo   Video?  @relation("VideoReposts", fields: [repostOfVideoId], references: [id])
 
+  // A comment IS a post — same author/likes/reposts/replies machinery as
+  // any other post, just one with a parent set (via POST /:id/comment,
+  // which skips the normal tag requirement). Distinct from repostOfId: a
+  // repost re-shares content under a new post, a reply responds to it —
+  // never both set on the same post. Deleting the parent cascades to its
+  // replies, same as any other owned child row.
+  parentId String?
+  parent   Post?   @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Post[]  @relation("Replies")
+
+  // A comment can instead target a streaming Video — mutually exclusive
+  // with parentId, mirroring repostOfVideoId's relationship to repostOfId.
+  parentVideoId String?
+  parentVideo   Video?  @relation("VideoReplies", fields: [parentVideoId], references: [id], onDelete: Cascade)
+
   author User      @relation(fields: [authorId], references: [id])
   tags   PostTag[]
   likes  Like[]
   notifications Notification[]
 
   @@index([section, createdAt])
+  @@index([parentId])
+  @@index([parentVideoId])
 }
 
 model Like {
@@ -149,6 +166,7 @@ model Video {
   tags    VideoTag[]
   likes   VideoLike[]
   repostedBy Post[]   @relation("VideoReposts")
+  replies    Post[]   @relation("VideoReplies")
 
   @@index([createdAt])
 }

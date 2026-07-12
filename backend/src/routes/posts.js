@@ -10,30 +10,44 @@ const VALID_SECTIONS = ["social", "news"];
 const PAGE_SIZE = 12;
 
 // GET /api/posts?section=social&tag=Technology&q=budget&cursor=<postId>
+// GET /api/posts?parentId=<postId>&cursor=<postId>       — a post's replies
+// GET /api/posts?parentVideoId=<videoId>&cursor=<postId> — a video's replies
+//
+// A comment is just a Post with parentId/parentVideoId set (see the
+// /:id/comment routes below) — reusing this same list endpoint to fetch
+// them, oldest-first so a thread reads top-to-bottom, is the whole reason
+// comments-as-posts pays off: no separate comment-fetching code needed.
+// Replies are otherwise excluded from every normal section/tag/search
+// listing so they don't clutter the feed as if they were top-level posts.
 postsRouter.get("/", async (req, res) => {
-  const { section, tag, q, cursor } = req.query;
+  const { section, tag, q, cursor, parentId, parentVideoId } = req.query;
+  const fetchingReplies = Boolean(parentId || parentVideoId);
 
-  if (!section || !VALID_SECTIONS.includes(section)) {
+  if (!fetchingReplies && (!section || !VALID_SECTIONS.includes(section))) {
     return res.status(400).json({ error: `section must be one of ${VALID_SECTIONS.join(", ")}` });
   }
 
-  const where = {
-    section,
-    ...(tag ? { tags: { some: { tag: { name: tag } } } } : {}),
-    ...(q
-      ? {
-          OR: [
-            { body: { contains: q } },
-            { author: { name: { contains: q } } },
-            { author: { handle: { contains: q } } },
-          ],
-        }
-      : {}),
-  };
+  const where = fetchingReplies
+    ? { parentId: parentId || null, parentVideoId: parentVideoId || null }
+    : {
+        section,
+        parentId: null,
+        parentVideoId: null,
+        ...(tag ? { tags: { some: { tag: { name: tag } } } } : {}),
+        ...(q
+          ? {
+              OR: [
+                { body: { contains: q } },
+                { author: { name: { contains: q } } },
+                { author: { handle: { contains: q } } },
+              ],
+            }
+          : {}),
+      };
 
   const posts = await prisma.post.findMany({
     where,
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: fetchingReplies ? "asc" : "desc" },
     take: PAGE_SIZE,
     ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     include: postInclude(req.user.id),
@@ -170,4 +184,40 @@ postsRouter.post("/:id/repost", async (req, res) => {
   });
 
   res.status(201).json(serializePost(repost));
+});
+
+// POST /api/posts/:id/comment  — body: { body }. A comment is a full Post
+// under the hood (parentId set) — same author/likes/reposts/reply
+// machinery as any other post, it just skips the normal tag requirement
+// since a reply doesn't need its own category. Always section "social",
+// even when replying to a News post — only social posts can be comments
+// (matches the video-comment endpoint below, which is social-only too
+// since videos have no section of their own).
+// (Commenting on a streaming Video instead of a post is a different
+// endpoint — see routes/videos.js.)
+postsRouter.post("/:id/comment", async (req, res) => {
+  const { body = "", imageUrl, videoUrl } = req.body;
+  if (!body.trim() && !imageUrl && !videoUrl) {
+    return res.status(400).json({ error: "A comment needs a body, an image, or a video" });
+  }
+  if (imageUrl && videoUrl) {
+    return res.status(400).json({ error: "A comment can have an image OR a video, not both" });
+  }
+
+  const parent = await prisma.post.findUnique({ where: { id: req.params.id } });
+  if (!parent) return res.status(404).json({ error: "Post not found" });
+
+  const comment = await prisma.post.create({
+    data: {
+      authorId: req.user.id,
+      section: "social",
+      body: body.trim(),
+      imageUrl: imageUrl || null,
+      videoUrl: videoUrl || null,
+      parentId: parent.id,
+    },
+    include: postInclude(req.user.id),
+  });
+
+  res.status(201).json(serializePost(comment));
 });

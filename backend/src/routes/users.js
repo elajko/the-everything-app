@@ -163,6 +163,11 @@ usersRouter.get("/:handle/posts", async (req, res) => {
           where: {
             authorId: user.id,
             section: { in: postSections },
+            // replies live under their parent's own page, not as top-level
+            // items in a profile's post list — same exclusion as the main
+            // feed listing in routes/posts.js
+            parentId: null,
+            parentVideoId: null,
             ...(tag ? { tags: { some: { tag: { name: tag } } } } : {}),
             ...(q ? { body: { contains: q } } : {}),
           },

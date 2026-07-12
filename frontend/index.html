@@ -980,6 +980,8 @@
   .actbtn.repost:hover .actbtn-icon{background:var(--accent2-soft);}
   .actbtn.share:hover{color:var(--accent);}
   .actbtn.share:hover .actbtn-icon{background:var(--accent-soft);}
+  .actbtn.comment:hover{color:var(--accent);}
+  .actbtn.comment:hover .actbtn-icon{background:var(--accent-soft);}
   .actbtn.like.active{color:var(--like);}
   .actbtn.like.active svg{fill:var(--like);transform:scale(1.08);}
   .actbtn.repost.active{color:var(--accent2);}
@@ -1092,6 +1094,51 @@
   .backbtn svg{width:13px;height:13px;}
   .detail-post{cursor:default;}
   .detail-post .post-body{font-size:16.5px;}
+
+  /* ---------- replies (detail page only, see renderReplySection) ---------- */
+  /* a reply is a full .post row (see renderPost reuse in repliesListHtml),
+     so there's very little bespoke CSS needed here — just the composer
+     and the "replying to" context label above a comment's own detail page */
+  .reply-context-label{
+    padding:12px 16px 0 16px;
+    font-size:13px;color:var(--muted);
+  }
+  .reply-context-label span{color:var(--accent);}
+  .comments-section{border-top:1px solid var(--border-soft);}
+  .comment-composer{display:flex;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border-soft);}
+  .comment-composer .avatar{width:36px;height:36px;}
+  .comment-composer-field{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;align-items:flex-end;}
+  /* align-items:flex-end above keeps the Reply button hugging the right
+     (unlike the main composer's full-width Post button), but that also
+     shrinks any un-sized child to its content — force these two back to
+     full width explicitly rather than losing the right-aligned button */
+  .comment-composer-field textarea,
+  .comment-composer-field .composer-media-picker,
+  .comment-composer-field .composer-media-preview{
+    width:100%;
+  }
+  .comment-composer-field textarea{
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:var(--surface);
+    color:var(--ink);
+    font-size:14.5px;
+    font-family:inherit;
+    line-height:1.5;
+    padding:9px 11px;
+    resize:vertical;
+    min-height:38px;
+    outline:none;
+  }
+  .comment-composer-field textarea:focus{border-color:var(--accent);}
+  .comment-submit-btn{
+    padding:6px 15px;border-radius:100px;font-size:13.5px;font-weight:700;
+    cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#fff;
+    transition:opacity .12s ease;
+  }
+  .comment-submit-btn:disabled{opacity:0.4;cursor:default;}
+  .comments-list{display:flex;flex-direction:column;}
+  .comments-empty{padding:24px 16px;text-align:center;color:var(--muted);font-size:14px;}
 
   /* ---------- user profile page ---------- */
   /* Always rendered, banner or not — a bannerless profile just gets a flat
@@ -1485,7 +1532,12 @@ function normalizePost(p){
     reposted: false,
     author: {...p.author, avatar: p.author.avatar || DEFAULT_AVATAR},
     embed: normalizePost(p.embed),
-    embedVideo: normalizeEmbedVideo(p.embedVideo)
+    embedVideo: normalizeEmbedVideo(p.embedVideo),
+    // a comment is a post with parent/parentVideo set — the single post
+    // or video it's replying to, shown above it on its own detail page
+    // (see renderParentContext)
+    parent: normalizePost(p.parent),
+    parentVideo: normalizeEmbedVideo(p.parentVideo)
   };
 }
 
@@ -1554,6 +1606,24 @@ let detailPost = null;
 let detailVideo = null;
 let detailUser = null;
 let searchDebounceTimer;
+
+// ---- replies to whatever post/video is currently open in the detail
+// view — a comment IS a post (see normalizePost's parent/parentVideo),
+// so this is fetched via the exact same GET /api/posts list endpoint the
+// main feed uses, just filtered by parentId/parentVideoId instead of
+// section, and rendered with the exact same renderPost() as anywhere
+// else — a reply is fully interactive (likeable, repostable, itself
+// replyable) for free. Only one detail item is ever open at a time, so a
+// single set of module-level state is enough — reset on every
+// openPostDetail/openVideoDetail call (see fetchReplies callers).
+let replies = [];
+let repliesNextCursor = null;
+let repliesLoading = false;
+let repliesNoMore = false;
+let repliesFetchSeq = 0;
+let replyDraft = "";
+let replyFile = null; // { name, type, dataUrl } | null — same shape as composerFile/repostFile
+let replySubmitting = false;
 
 // ---- profile page's own post search (separate from the main feed's
 // tab-scoped search above — filters/sorts/paginates a single user's own
@@ -1665,6 +1735,81 @@ async function fetchVideos(reset){
 function refetchCurrentTab(reset){
   if(currentTab === 'streaming') fetchVideos(reset);
   else fetchPosts(reset);
+}
+
+// ---- replies — kind is 'post' or 'video', matching the action bar's
+// data-kind convention. A reply is just a Post, so fetching a thread is
+// the exact same GET /api/posts list request as the feed, filtered by
+// parentId/parentVideoId instead of section (see routes/posts.js).
+async function fetchReplies(kind, id, reset){
+  if(!reset && (repliesLoading || repliesNoMore)) return;
+  const seq = ++repliesFetchSeq;
+  if(reset){ replies = []; repliesNextCursor = null; repliesNoMore = false; }
+  repliesLoading = true;
+  renderRepliesList();
+  try{
+    const params = new URLSearchParams();
+    params.set(kind==='video' ? 'parentVideoId' : 'parentId', id);
+    if(repliesNextCursor) params.set('cursor', repliesNextCursor);
+    const res = await fetch(`${API_BASE}/posts?${params}`);
+    const data = await res.json();
+    if(seq !== repliesFetchSeq) return;
+    replies = replies.concat(data.posts.map(normalizePost));
+    repliesNextCursor = data.nextCursor;
+    repliesNoMore = !repliesNextCursor;
+  }catch(e){
+    console.error(e);
+    if(seq === repliesFetchSeq) showToast('Could not reach the server');
+  }finally{
+    if(seq === repliesFetchSeq){
+      repliesLoading = false;
+      renderRepliesList();
+    }
+  }
+}
+
+// creates the reply as a real post (see POST /:id/comment in
+// routes/posts.js and routes/videos.js) — same author/likes/reposts
+// machinery as anything else, just parented to whatever's being replied to
+function replyValid(){
+  return replyDraft.trim().length > 0 || !!replyFile;
+}
+async function submitReply(kind, id){
+  if(!replyValid() || replySubmitting) return;
+  replySubmitting = true;
+  updateReplySubmitBtn();
+  try{
+    let imageUrl, videoUrl;
+    if(replyFile){
+      const url = await uploadFile(replyFile);
+      if(isVideoFile(replyFile)) videoUrl = url;
+      else imageUrl = url;
+    }
+    const res = await fetch(`${API_BASE}/${kind==='video'?'videos':'posts'}/${id}/comment`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ body: replyDraft.trim(), imageUrl, videoUrl })
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.error || 'Failed to post comment');
+    }
+    const created = normalizePost(await res.json());
+    replies.push(created);
+    // bump the visible count on the item itself, same as like/repost's
+    // optimistic local update elsewhere
+    const item = kind==='video' ? findVideo(id) : findPost(id);
+    if(item) item.replies = (item.replies||0) + 1;
+    replyDraft = "";
+    replyFile = null;
+    replySubmitting = false;
+    renderMain();
+  }catch(e){
+    console.error(e);
+    replySubmitting = false;
+    updateReplySubmitBtn();
+    showToast(e.message || 'Could not reach the server');
+  }
 }
 
 // ---- profile page's own post search — merges Posts and Videos from a
@@ -3041,6 +3186,7 @@ function renderSubTabs(){
 
 // ---- icons ----
 const ICON_HEART = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>`;
+const ICON_COMMENT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`;
 const ICON_REPOST = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`;
 const ICON_BACK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M15 18l-6-6 6-6"/></svg>`;
 const ICON_SHARE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.2M8.6 13.4l6.8 3.2"/></svg>`;
@@ -3169,14 +3315,94 @@ function renderShareBtn(kind, id){
 function renderActionBar(kind, item){
   return `
     <div class="actionbar">
-      <button class="actbtn like ${item.liked?'active':''}" data-action="like" data-kind="${kind}" data-id="${item.id}">
-        <span class="actbtn-icon">${ICON_HEART}</span><span>${item.likes}</span>
+      <button class="actbtn comment" data-action="comment" data-kind="${kind}" data-id="${item.id}">
+        <span class="actbtn-icon">${ICON_COMMENT}</span><span>${item.replies||0}</span>
       </button>
       <button class="actbtn repost" data-action="repost" data-kind="${kind}" data-id="${item.id}">
         <span class="actbtn-icon">${ICON_REPOST}</span><span>${item.reposts}</span>
       </button>
+      <button class="actbtn like ${item.liked?'active':''}" data-action="like" data-kind="${kind}" data-id="${item.id}">
+        <span class="actbtn-icon">${ICON_HEART}</span><span>${item.likes}</span>
+      </button>
       ${renderShareBtn(kind, item.id)}
     </div>`;
+}
+
+// ---- replies (see the `replies`/`fetchReplies`/`submitReply` state near
+// the top of the script) — a flat composer + list shown under the action
+// bar on a post/video's own detail page only, never in the feed. Each
+// reply is a full post, rendered with the exact same renderPost() used
+// everywhere else — it's fully interactive (like/repost/share/reply) with
+// zero extra code, since it really is just another post.
+function repliesListHtml(){
+  if(replies.length) return replies.map(r=>renderPost(r)).join('');
+  return repliesLoading ? '' : `<div class="comments-empty">No replies yet — be the first.</div>`;
+}
+function repliesListEl(){
+  return document.getElementById('repliesList');
+}
+function renderRepliesList(){
+  const el = repliesListEl();
+  if(el) el.innerHTML = repliesListHtml();
+}
+function updateReplySubmitBtn(){
+  const btn = document.querySelector('.comment-submit-btn');
+  if(!btn) return;
+  btn.disabled = !replyValid() || replySubmitting;
+  btn.textContent = replySubmitting ? 'Posting…' : 'Reply';
+}
+// same media-attach pattern as the main composer/repost modal (composerFile/
+// repostFile) — a preview with a remove button once a file's picked, else
+// a picker label. Split out from renderReplySection so picking/removing a
+// file can re-render just this part (see rerenderReplyComposer) without
+// touching the reply list or losing the textarea's typed draft.
+function replyMediaBlockHtml(){
+  if(!replyFile){
+    return `<label class="composer-media-picker" data-action="pick-reply-file" title="Add a photo or video">${ICON_MEDIA} Add a photo or video</label>`;
+  }
+  return `
+    <div class="composer-media-preview">
+      ${isVideoFile(replyFile)
+        ? `<video src="${replyFile.dataUrl}" controls></video>`
+        : `<img src="${replyFile.dataUrl}"/>`}
+      <button type="button" class="composer-media-remove" data-action="remove-reply-media" aria-label="Remove media">${ICON_X}</button>
+    </div>`;
+}
+function replyComposerHtml(kind, id){
+  return `
+    <img class="avatar" src="${DEFAULT_AVATAR}"/>
+    <div class="comment-composer-field">
+      <textarea id="commentInput" placeholder="Post your reply" rows="1">${escapeHtml(replyDraft)}</textarea>
+      ${replyMediaBlockHtml()}
+      <input type="file" id="replyFileInput" accept="image/*,video/*" hidden/>
+      <button type="button" class="comment-submit-btn" data-action="submit-comment" data-kind="${kind}" data-id="${id}" ${(!replyValid()||replySubmitting)?'disabled':''}>${replySubmitting?'Posting…':'Reply'}</button>
+    </div>`;
+}
+function rerenderReplyComposer(kind, id){
+  const el = document.getElementById('replyComposer');
+  if(el) el.innerHTML = replyComposerHtml(kind, id);
+}
+function renderReplySection(kind, id){
+  return `
+    <div class="comments-section">
+      <div class="comment-composer" id="replyComposer">${replyComposerHtml(kind, id)}</div>
+      <div class="comments-list" id="repliesList">${repliesListHtml()}</div>
+    </div>`;
+}
+
+// Shown above a post on its own detail page when it's itself a reply —
+// the single thing it's replying to (see Post.parent/parentVideo), reusing
+// the exact same compact embed treatment reposts already get. Only posts
+// can be replies (comments are posts; videos can't be), so this only
+// ever applies on a post's detail page, never a video's.
+function renderParentContext(post){
+  if(post.parent){
+    return `<div class="reply-context-label">Replying to <span data-user-handle="${post.parent.author.handle}">@${post.parent.author.handle}</span></div>${renderEmbed(post.parent, 1)}`;
+  }
+  if(post.parentVideo){
+    return `<div class="reply-context-label">Replying to <span data-user-handle="${post.parentVideo.channel.handle}">@${post.parentVideo.channel.handle}</span></div>${renderVideoEmbed(post.parentVideo)}`;
+  }
+  return '';
 }
 
 // a post's own image/video is plain media — same treatment either way, no
@@ -3451,6 +3677,7 @@ function renderMain(){
         <div class="detailwrap">
           <div class="backbtn" data-action="back">${ICON_BACK} Back to ${SECTIONS.find(s=>s.id===currentTab).label}</div>
           ${renderVideoDetailPage(video)}
+          ${renderReplySection('video', video.id)}
         </div>`;
       return;
     }
@@ -3460,7 +3687,9 @@ function renderMain(){
     feedbodyEl.innerHTML = `
       <div class="detailwrap">
         <div class="backbtn" data-action="back">${ICON_BACK} Back to ${SECTIONS.find(s=>s.id===currentTab).label}</div>
+        ${renderParentContext(post)}
         ${renderPost(post, 'detail-post')}
+        ${renderReplySection('post', post.id)}
       </div>`;
     return;
   }
@@ -3545,12 +3774,15 @@ function openPostDetail(post, {push=true}={}){
   detailId = post.id;
   currentTab = post.section;
   view = 'detail';
+  replyDraft = "";
+  replyFile = null;
   renderTabs();
   renderSubTabs();
   renderComposer();
   if(push) history.pushState({postId: post.id}, '', `#post/${post.id}`);
   renderMain();
   window.scrollTo({top:0, behavior:'instant'});
+  fetchReplies('post', post.id, true);
 }
 
 function openVideoDetail(video, {push=true}={}){
@@ -3564,12 +3796,15 @@ function openVideoDetail(video, {push=true}={}){
   detailType = 'video';
   detailId = video.id;
   view = 'detail';
+  replyDraft = "";
+  replyFile = null;
   renderTabs();
   renderSubTabs();
   renderComposer();
   if(push) history.pushState({videoId: video.id}, '', `#video/${video.id}`);
   renderMain();
   window.scrollTo({top:0, behavior:'instant'});
+  fetchReplies('video', video.id, true);
 }
 
 function closeDetail({push=true}={}){
@@ -3695,7 +3930,7 @@ window.addEventListener('popstate', ()=>{
 function findEmbeddedPost(post, id){
   if(!post) return null;
   if(post.id === id) return post;
-  return findEmbeddedPost(post.embed, id);
+  return findEmbeddedPost(post.embed, id) || findEmbeddedPost(post.parent, id);
 }
 function findPost(id){
   if(detailPost){
@@ -3704,6 +3939,10 @@ function findPost(id){
   }
   for(const p of posts){
     const found = findEmbeddedPost(p, id);
+    if(found) return found;
+  }
+  for(const r of replies){
+    const found = findEmbeddedPost(r, id);
     if(found) return found;
   }
   for(const item of profileItems){
@@ -3726,6 +3965,8 @@ feedbodyEl.addEventListener('click', (e)=>{
   const likeBtn = e.target.closest('[data-action="like"]');
   const repostBtn = e.target.closest('[data-action="repost"]');
   const shareBtn = e.target.closest('[data-action="share"]');
+  const commentBtn = e.target.closest('[data-action="comment"]');
+  const submitCommentBtn = e.target.closest('[data-action="submit-comment"]');
   const backBtn = e.target.closest('[data-action="back"]');
   const userHandleEl = e.target.closest('[data-user-handle]');
   const embedEl = e.target.closest('.embed');
@@ -3820,6 +4061,38 @@ feedbodyEl.addEventListener('click', (e)=>{
     copyToClipboard(kind==='video' ? videoPermalink(id) : postUrl(id));
     return;
   }
+  if(commentBtn){
+    const id = commentBtn.getAttribute('data-id');
+    const kind = commentBtn.getAttribute('data-kind');
+    const alreadyOpen = view==='detail' && detailType===kind && detailId===id;
+    if(!alreadyOpen){
+      const item = kind==='video' ? findVideo(id) : findPost(id);
+      if(item){
+        if(kind==='video') openVideoDetail(item); else openPostDetail(item);
+      } else if(kind==='video'){
+        loadVideoFromHash(id, {push:true});
+      } else {
+        loadPostFromHash(id, {push:true});
+      }
+    }
+    document.getElementById('commentInput')?.focus();
+    return;
+  }
+  if(submitCommentBtn){
+    const id = submitCommentBtn.getAttribute('data-id');
+    const kind = submitCommentBtn.getAttribute('data-kind');
+    submitReply(kind, id);
+    return;
+  }
+  if(e.target.closest('[data-action="pick-reply-file"]')){
+    document.getElementById('replyFileInput')?.click();
+    return;
+  }
+  if(e.target.closest('[data-action="remove-reply-media"]')){
+    replyFile = null;
+    rerenderReplyComposer(detailType, detailId);
+    return;
+  }
   if(backBtn){
     closeDetail();
     return;
@@ -3890,7 +4163,26 @@ feedbodyEl.addEventListener('input', (e)=>{
   } else if(e.target.id === 'threadComposerInput'){
     messageComposerText = e.target.value;
     updateThreadSendBtn();
+  } else if(e.target.id === 'commentInput'){
+    replyDraft = e.target.value;
+    updateReplySubmitBtn();
   }
+});
+feedbodyEl.addEventListener('change', (e)=>{
+  if(e.target.id !== 'replyFileInput') return;
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  if(file.size > MAX_UPLOAD_BYTES){
+    showToast('That file is too large (20MB max)');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    replyFile = { name: file.name, type: file.type, dataUrl: reader.result };
+    rerenderReplyComposer(detailType, detailId);
+  };
+  reader.readAsDataURL(file);
 });
 feedbodyEl.addEventListener('keydown', (e)=>{
   if(e.target.id === 'threadComposerInput' && e.key === 'Enter'){

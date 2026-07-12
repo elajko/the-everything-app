@@ -186,9 +186,17 @@ async function main() {
       userRows[u.handle] = existing;
       continue;
     }
-    const avatarUrl = AVATAR_SOURCES[u.handle]
-      ? await seedAvatarFromUrl(AVATAR_SOURCES[u.handle])
-      : null;
+    // If the source CDN is unreachable/blocking, fall back to no avatar
+    // (same as priyanotes' deliberate no-avatar case) rather than failing
+    // the whole seed over a single flaky external fetch.
+    let avatarUrl = null;
+    if (AVATAR_SOURCES[u.handle]) {
+      try {
+        avatarUrl = await seedAvatarFromUrl(AVATAR_SOURCES[u.handle]);
+      } catch (e) {
+        console.warn(`Could not fetch avatar for ${u.handle}, leaving unset: ${e.message}`);
+      }
+    }
     userRows[u.handle] = await prisma.user.create({ data: { ...u, avatarUrl } });
   }
 

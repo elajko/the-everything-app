@@ -144,3 +144,36 @@ videosRouter.post("/:id/repost", async (req, res) => {
 
   res.status(201).json(serializePost(repost));
 });
+
+// POST /api/videos/:id/comment  — body: { body }. Same as
+// routes/posts.js's /:id/comment, except the created Post's parentVideoId
+// points at this video instead of parentId pointing at a post — and since
+// videos have no section of their own, defaults to "social" the same way
+// a video repost does. Fetch a video's comment thread back out via
+// GET /api/posts?parentVideoId=<id> (see routes/posts.js).
+videosRouter.post("/:id/comment", async (req, res) => {
+  const { body = "", imageUrl, videoUrl } = req.body;
+  if (!body.trim() && !imageUrl && !videoUrl) {
+    return res.status(400).json({ error: "A comment needs a body, an image, or a video" });
+  }
+  if (imageUrl && videoUrl) {
+    return res.status(400).json({ error: "A comment can have an image OR a video, not both" });
+  }
+
+  const video = await prisma.video.findUnique({ where: { id: req.params.id } });
+  if (!video) return res.status(404).json({ error: "Video not found" });
+
+  const comment = await prisma.post.create({
+    data: {
+      authorId: req.user.id,
+      section: "social",
+      body: body.trim(),
+      imageUrl: imageUrl || null,
+      videoUrl: videoUrl || null,
+      parentVideoId: video.id,
+    },
+    include: postInclude(req.user.id),
+  });
+
+  res.status(201).json(serializePost(comment));
+});
