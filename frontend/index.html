@@ -1209,7 +1209,6 @@
   .profile-sort-btn{
     display:flex;
     align-items:center;
-    gap:6px;
     border:1px solid var(--border);
     background:var(--paper);
     color:var(--tag-ink);
@@ -1225,13 +1224,17 @@
   .profile-sort-label{
     display:inline-block;
     max-width:0;
+    margin-left:0;
     opacity:0;
     overflow:hidden;
     font-size:13px;
     font-weight:600;
-    transition:max-width .18s ease, opacity .12s ease;
+    /* max-width/margin-left drive the width change (no flex gap involved —
+       gap is a fixed jump, not something that eases), opacity is its own
+       faster fade so the text doesn't look stretched mid-expand */
+    transition:max-width .22s ease, margin-left .22s ease, opacity .15s ease;
   }
-  .profile-sort-btn.active .profile-sort-label{max-width:90px;opacity:1;}
+  .profile-sort-btn.active .profile-sort-label{max-width:90px;margin-left:6px;opacity:1;}
   .profile-posts-list{display:flex;flex-direction:column;}
   .profile-posts-list .card{
     padding:12px 16px 16px 16px;
@@ -3749,8 +3752,15 @@ feedbodyEl.addEventListener('click', (e)=>{
     const s = sortBtn.getAttribute('data-sort');
     if(profileSort !== s){
       profileSort = s;
+      // toggle the class on the existing buttons rather than re-rendering
+      // the row's innerHTML — a freshly-created node has no prior state to
+      // transition from, so the CSS width/opacity transition wouldn't play
       const rowEl = document.getElementById('profileSortRow');
-      if(rowEl) rowEl.innerHTML = renderProfileSortRowHtml();
+      if(rowEl){
+        rowEl.querySelectorAll('[data-sort]').forEach(btn=>{
+          btn.classList.toggle('active', btn.getAttribute('data-sort') === s);
+        });
+      }
       fetchProfilePosts(true);
     }
     return;
