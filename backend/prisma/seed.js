@@ -36,10 +36,16 @@ async function seedAvatarFromUrl(url) {
   return `${LOCAL_BASE_URL}/uploads/${name}`;
 }
 
+// "Art" was replaced by "Digital Art"/"Traditional Art" (see the one-off
+// merge this went through — backend/src/routes/tags.js has no merge
+// endpoint, this was a manual migration) — Photography is new alongside
+// them. All three get the masonry treatment on the Social tab search; see
+// MASONRY_TAGS in the frontend.
 const TAGS = [
   "Food", "Politics", "Media", "Celebrity", "Adult", "Technology", "Gaming",
-  "Art", "Sports", "Music", "Science", "Business", "Finance", "Travel",
-  "Fashion", "Health", "Movies", "Books", "Nature", "Comedy",
+  "Digital Art", "Traditional Art", "Photography", "Sports", "Music", "Science",
+  "Business", "Finance", "Travel", "Fashion", "Health", "Movies", "Books",
+  "Nature", "Comedy",
 ];
 
 // Wide header images shown above the hero on each profile page — real
@@ -298,6 +304,38 @@ async function main() {
       repostOfVideoId: dumplingVideo.id,
       tags: { create: [{ tagId: tagRows["Food"].id }] },
     },
+  });
+
+  // A few image posts under the new art/photo tags so the Social tab's
+  // masonry view (see MASONRY_TAGS in the frontend) has more than one tile
+  // to show when you actually try it.
+  await createPost({
+    author: "dok_writes",
+    section: "social",
+    body: "Playing with color today.",
+    tags: ["Digital Art"],
+    imageUrl: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=1200&q=80&auto=format&fit=crop",
+  });
+  await createPost({
+    author: "marencole",
+    section: "social",
+    body: "Saw this at the museum, had to share.",
+    tags: ["Traditional Art"],
+    imageUrl: "https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=1200&q=80&auto=format&fit=crop",
+  });
+  await createPost({
+    author: "jweir",
+    section: "social",
+    body: "Shot this on a walk last night.",
+    tags: ["Photography"],
+    imageUrl: "https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=1200&q=80&auto=format&fit=crop",
+  });
+  await createPost({
+    author: "priyanotes",
+    section: "social",
+    body: "New portrait from the shoot this weekend.",
+    tags: ["Photography"],
+    imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&q=80&auto=format&fit=crop",
   });
 
   // Private messages — a few DM threads with "you" so the sidebar's

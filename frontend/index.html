@@ -530,6 +530,7 @@
   }
   .tag-dropdown-item:hover{border-color:var(--accent);color:var(--ink);}
   .tag-dropdown-item.selected{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .tag-divider{flex-basis:100%;height:0;border-top:1px solid var(--border);margin:2px 0;}
   .count-pill{
     font-family:'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
     font-size:12.5px;
@@ -1057,6 +1058,28 @@
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .card-sub{font-size:13px;color:var(--muted);margin-top:3px;font-family:'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;}
 
+  /* ---------- masonry (Social tab, filtered to a MASONRY_TAGS tag) ---------- */
+  .masonry-grid{
+    column-count:3;
+    column-gap:3px;
+    padding:3px;
+  }
+  .masonry-item{
+    display:block;
+    width:100%;
+    margin-bottom:3px;
+    break-inside:avoid;
+    -webkit-column-break-inside:avoid;
+    cursor:pointer;
+    border-radius:6px;
+    overflow:hidden;
+    background:var(--tag-bg);
+    animation:fadein .25s ease;
+  }
+  .masonry-item img{width:100%;display:block;transition:opacity .12s ease;}
+  .masonry-item:hover img{opacity:0.85;}
+  @media (max-width:560px){ .masonry-grid{column-count:2;} }
+
   /* ---------- detail page ---------- */
   .detailwrap{padding:0 0 6px 0;}
   .backbtn{
@@ -1169,33 +1192,46 @@
   }
   .profile-filter-pill:hover{border-color:var(--accent);color:var(--ink);}
   .profile-filter-pill.active{background:var(--accent);border-color:var(--accent);color:#fff;}
-  .profile-posts-searchrow{display:flex;gap:8px;flex-wrap:wrap;}
-  .profile-posts-search{
-    flex:1;
-    min-width:140px;
-    background:var(--surface);
+  .profile-filter-reset{
+    display:flex;align-items:center;justify-content:center;
+    width:26px;height:26px;
     border:1px solid var(--border);
-    border-radius:7px;
-    padding:7px 10px;
-    font-size:14.5px;
-    font-family:'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
-    color:var(--ink);
-    outline:none;
-  }
-  .profile-posts-search::placeholder{color:var(--muted);}
-  .profile-posts-search:focus{border-color:var(--accent);}
-  .profile-posts-select{
-    background:var(--surface);
-    border:1px solid var(--border);
-    border-radius:7px;
-    padding:7px 8px;
-    font-size:13.5px;
-    font-weight:600;
-    color:var(--ink-soft);
-    outline:none;
+    background:var(--paper);
+    color:var(--tag-ink);
+    border-radius:100px;
     cursor:pointer;
+    transition:all .12s ease;
   }
-  .profile-posts-select:focus{border-color:var(--accent);}
+  .profile-filter-reset:hover{border-color:var(--accent);color:var(--ink);}
+  .profile-filter-reset svg{width:14px;height:14px;}
+  .profile-posts-searchrow{display:flex;gap:8px;flex-wrap:wrap;}
+  .profile-sort-row{display:flex;gap:6px;flex:none;}
+  .profile-sort-btn{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    border:1px solid var(--border);
+    background:var(--paper);
+    color:var(--tag-ink);
+    padding:7px 9px;
+    border-radius:100px;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease, color .15s ease;
+    white-space:nowrap;
+  }
+  .profile-sort-btn svg{width:14px;height:14px;flex:none;}
+  .profile-sort-btn:hover{border-color:var(--accent);color:var(--ink);}
+  .profile-sort-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .profile-sort-label{
+    display:inline-block;
+    max-width:0;
+    opacity:0;
+    overflow:hidden;
+    font-size:13px;
+    font-weight:600;
+    transition:max-width .18s ease, opacity .12s ease;
+  }
+  .profile-sort-btn.active .profile-sort-label{max-width:90px;opacity:1;}
   .profile-posts-list{display:flex;flex-direction:column;}
   .profile-posts-list .card{
     padding:12px 16px 16px 16px;
@@ -1398,6 +1434,24 @@ const STREAMING_SUBTABS = [
   {id:"music", label:"Music"}
 ];
 
+// Filtering the Social tab (only — never News/Streaming) down to exactly
+// one of these tags swaps the normal post list for an image-only masonry
+// grid instead — see renderMasonryGrid and its call site in renderMain.
+const MASONRY_TAGS = ["Digital Art", "Traditional Art", "Photography"];
+
+// Everywhere tags are listed (search filter, composer, profile filter),
+// the MASONRY_TAGS art tags are grouped first with a thin divider before
+// the rest — no text label, just a visual break.
+function orderedTagGroups(){
+  const art = MASONRY_TAGS.filter(t => TAGS.includes(t));
+  const rest = TAGS.filter(t => !MASONRY_TAGS.includes(t));
+  return {art, rest};
+}
+function tagPillsHtml(renderItemFn){
+  const {art, rest} = orderedTagGroups();
+  const divider = (art.length && rest.length) ? '<div class="tag-divider"></div>' : '';
+  return art.map(renderItemFn).join('') + divider + rest.map(renderItemFn).join('');
+}
 const API_BASE = "http://localhost:4000/api";
 
 function pickImage(seed){ return `https://picsum.photos/seed/${seed}/640/360`; }
@@ -1498,7 +1552,9 @@ const PROFILE_POST_TYPES = [
   {id:'news', label:'News'},
   {id:'video', label:'Vids'}
 ];
-let profileFilterTypes = new Set(['social','news','video']);
+// Empty set = no filter = show every content type. Selecting a pill
+// restricts to just the selected type(s) — see renderProfileTypeRowHtml.
+let profileFilterTypes = new Set();
 let profileTag = null;
 let profileQuery = "";
 let profileSort = 'recent'; // 'recent' | 'likes'
@@ -1621,10 +1677,6 @@ function profilePostsListEl(){
 function renderProfilePostsList(){
   const el = profilePostsListEl();
   if(!el) return; // navigated away before this resolved
-  if(profileFilterTypes.size === 0){
-    el.innerHTML = `<div class="empty-state"><b>Nothing selected</b>Pick at least one content type above.</div>`;
-    return;
-  }
   if(!profileItems.length){
     el.innerHTML = profileLoading ? '' : `<div class="empty-state"><b>No posts found</b>Try a different filter or search.</div>`;
     return;
@@ -1637,17 +1689,12 @@ async function fetchProfilePosts(reset){
   if(!reset && (profileLoading || profileNoMore)) return;
   const seq = ++profileFetchSeq;
   if(reset){ profileItems = []; profileOffset = 0; profileNoMore = false; }
-  if(profileFilterTypes.size === 0){
-    profileNoMore = true;
-    renderProfilePostsList();
-    return;
-  }
   profileLoading = true;
   loadingRow.style.display = 'block';
   if(reset) renderProfilePostsList(); // clear stale results immediately on a new filter/search
   try{
     const params = new URLSearchParams();
-    if(profileFilterTypes.size < PROFILE_POST_TYPES.length){
+    if(profileFilterTypes.size > 0){
       params.set('types', [...profileFilterTypes].join(','));
     }
     if(profileTag) params.set('tag', profileTag);
@@ -2005,7 +2052,7 @@ function renderComposer(focusBody){
       <div>
         <div class="composer-tags-label">Tags ${tagCountLabel(composerTags)}</div>
         <div class="composer-tags">
-          ${TAGS.map(t=>`<div class="tag-dropdown-item ${composerTags.includes(t)?'selected':''} ${(!composerTags.includes(t) && composerTags.length>=3)?'disabled':''}" data-ctag="${t}">${t}</div>`).join('')}
+          ${tagPillsHtml(t=>`<div class="tag-dropdown-item ${composerTags.includes(t)?'selected':''} ${(!composerTags.includes(t) && composerTags.length>=3)?'disabled':''}" data-ctag="${t}">${t}</div>`)}
         </div>
       </div>
       ${mediaBlock}
@@ -2061,7 +2108,7 @@ function renderVideoComposer(focusBody){
       <div>
         <div class="composer-tags-label">Tags ${tagCountLabel(composerTags)}</div>
         <div class="composer-tags">
-          ${TAGS.map(t=>`<div class="tag-dropdown-item ${composerTags.includes(t)?'selected':''} ${(!composerTags.includes(t) && composerTags.length>=3)?'disabled':''}" data-ctag="${t}">${t}</div>`).join('')}
+          ${tagPillsHtml(t=>`<div class="tag-dropdown-item ${composerTags.includes(t)?'selected':''} ${(!composerTags.includes(t) && composerTags.length>=3)?'disabled':''}" data-ctag="${t}">${t}</div>`)}
         </div>
       </div>
       <div class="composer-actions">
@@ -2891,7 +2938,7 @@ function renderTagDropdown(){
   tagDropdownEl.innerHTML = `
     <div class="tag-dropdown-label">Filter by tag ${selectedTag ? '· 1 selected' : ''}</div>
     <div class="tag-dropdown-grid">
-      ${TAGS.map(t=>`<div class="tag-dropdown-item ${selectedTag===t?'selected':''}" data-tag="${t}">${t}</div>`).join('')}
+      ${tagPillsHtml(t=>`<div class="tag-dropdown-item ${selectedTag===t?'selected':''}" data-tag="${t}">${t}</div>`)}
     </div>
   `;
 }
@@ -2940,6 +2987,10 @@ document.addEventListener('click', (e)=>{
   if(!searchComboEl.contains(e.target)){
     closeTagDropdown();
   }
+  const profileCombo = document.getElementById('profileSearchCombo');
+  if(profileCombo && !profileCombo.contains(e.target)){
+    document.getElementById('profileTagDropdown')?.classList.remove('open');
+  }
 });
 
 function renderTabs(){
@@ -2968,6 +3019,67 @@ const ICON_SHARE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const ICON_PLAY = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>`;
 const ICON_CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>`;
 const ICON_PENCIL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
+const ICON_RESET = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
+const ICON_CLOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
+
+// Sort toggle for the profile's post search: two icon buttons instead of a
+// select — the active one expands to show its label next to the icon (see
+// .profile-sort-btn/.profile-sort-label), the other stays icon-only.
+const PROFILE_SORTS = [
+  {id:'recent', label:'Newest', icon:ICON_CLOCK},
+  {id:'likes', label:'Most liked', icon:ICON_HEART},
+];
+function renderProfileSortRowHtml(){
+  return PROFILE_SORTS.map(s=>`
+    <button type="button" class="profile-sort-btn ${profileSort===s.id?'active':''}" data-sort="${s.id}" title="${s.label}" aria-label="Sort by ${s.label.toLowerCase()}">${s.icon}<span class="profile-sort-label">${s.label}</span></button>
+  `).join('');
+}
+
+// Renders the profile's content-type filter pills plus, when any pill is
+// selected, a small reset button to their right that clears back to the
+// unselected/"show everything" state. Selected = restrict to that type;
+// none selected = no filter at all (not "show nothing").
+function renderProfileTypeRowHtml(user){
+  const types = PROFILE_POST_TYPES.filter(t=>t.id!=='news' || user.verifiedNewsProvider);
+  const pills = types.map(t=>`<button type="button" class="profile-filter-pill ${profileFilterTypes.has(t.id)?'active':''}" data-profile-type="${t.id}">${t.label}</button>`).join('');
+  const reset = profileFilterTypes.size ? `<button type="button" class="profile-filter-reset" data-action="reset-profile-filter" title="Clear filter" aria-label="Clear filter">${ICON_RESET}</button>` : '';
+  return pills + reset;
+}
+
+// Same combobox-with-pill pattern as the main feed's search bar (see
+// renderSearchField/renderTagDropdown + #searchCombo) — the tag pill lives
+// inside the input itself, not a separate row/select. Reuses the same
+// .search-combo/.search-field/.tag-dropdown markup and CSS, and the same
+// tagPillsHtml/data-tag/data-remove-tag conventions; wiring is delegated
+// through feedbodyEl instead of dedicated listeners since this markup is
+// torn down and rebuilt every time the profile page loads (see the
+// feedbodyEl input/change/keydown/click listeners below).
+function profileSearchFieldHtml(user){
+  return `
+    ${profileTag ? `
+      <span class="search-tagpill" data-tag-pill="1">
+        ${profileTag}
+        <button type="button" data-remove-tag="1" aria-label="Remove tag filter">${ICON_X}</button>
+      </span>` : ''}
+    <input id="profilePostsSearch" type="text"
+      placeholder="${profileTag ? 'Search within ' + profileTag + '…' : `Search @${user.handle}'s posts…`}"
+      value="${attr(profileQuery)}" autocomplete="off"/>
+  `;
+}
+function profileTagDropdownHtml(){
+  return `
+    <div class="tag-dropdown-label">Filter by tag ${profileTag ? '· 1 selected' : ''}</div>
+    <div class="tag-dropdown-grid">
+      ${tagPillsHtml(t=>`<div class="tag-dropdown-item ${profileTag===t?'selected':''}" data-tag="${t}">${t}</div>`)}
+    </div>
+  `;
+}
+function rerenderProfileSearchCombo(user){
+  const fieldEl = document.getElementById('profileSearchField');
+  const dropdownEl = document.getElementById('profileTagDropdown');
+  if(fieldEl) fieldEl.innerHTML = profileSearchFieldHtml(user);
+  if(dropdownEl) dropdownEl.innerHTML = profileTagDropdownHtml();
+}
 
 // Affiliate programs an account can register for (multiple at once — e.g.
 // a news outlet that also runs its own streaming studio). Buttons here are
@@ -3115,6 +3227,26 @@ function renderPost(post, extraClass){
     </div>`;
 }
 
+// Social-tab-only alternate view when filtered to exactly one of
+// MASONRY_TAGS — just the images, Pinterest-style, in place of the normal
+// post list. Clicking a tile opens the same post detail view a normal row
+// would (see the [data-id] delegated click handler) — this is purely a
+// different way to browse the search results, not a different post shape.
+// Text-only posts (no image) matching the tag simply don't have a tile to
+// show here and are left out.
+function renderMasonryGrid(posts){
+  const withImages = posts.filter(p=>p.image);
+  if(!withImages.length) return '';
+  return `
+    <div class="masonry-grid">
+      ${withImages.map(p=>`
+        <div class="masonry-item" data-id="${p.id}">
+          <img src="${p.image}" loading="lazy" alt=""/>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
 // Streaming tab's YouTube-style detail page — exclusive to the Video model.
 // Posts never use this layout, even when they happen to have a video
 // attached (see renderPostMedia).
@@ -3188,22 +3320,18 @@ function renderProfilePage(user){
       </div>` : ''}
       <div class="profile-posts-section">
         <div class="profile-posts-toolbar">
-          <div class="profile-posts-typerow">
-            ${PROFILE_POST_TYPES.filter(t=>t.id!=='news' || user.verifiedNewsProvider).map(t=>`
-              <button type="button" class="profile-filter-pill ${profileFilterTypes.has(t.id)?'active':''}" data-profile-type="${t.id}">${t.label}</button>
-            `).join('')}
+          <div class="profile-posts-typerow" id="profileTypeRow">
+            ${renderProfileTypeRowHtml(user)}
           </div>
           <div class="profile-posts-searchrow">
-            <input type="text" id="profilePostsSearch" class="profile-posts-search"
-              placeholder="Search @${user.handle}'s posts…" value="${attr(profileQuery)}"/>
-            <select id="profilePostsTag" class="profile-posts-select">
-              <option value="">All tags</option>
-              ${TAGS.map(t=>`<option value="${t}" ${profileTag===t?'selected':''}>${t}</option>`).join('')}
-            </select>
-            <select id="profilePostsSort" class="profile-posts-select">
-              <option value="recent" ${profileSort==='recent'?'selected':''}>Newest</option>
-              <option value="likes" ${profileSort==='likes'?'selected':''}>Most liked</option>
-            </select>
+            <div class="search-combo" id="profileSearchCombo">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+              <div class="search-field" id="profileSearchField">${profileSearchFieldHtml(user)}</div>
+              <div class="tag-dropdown" id="profileTagDropdown">${profileTagDropdownHtml()}</div>
+            </div>
+            <div class="profile-sort-row" id="profileSortRow">
+              ${renderProfileSortRowHtml()}
+            </div>
           </div>
         </div>
         <div class="profile-posts-list" id="profilePostsList"></div>
@@ -3346,6 +3474,17 @@ function renderMain(){
 
   applayoutEl.classList.remove('wide');
   countPill.textContent = `${posts.length} post${posts.length===1?'':'s'}`;
+
+  if(currentTab === 'social' && MASONRY_TAGS.includes(selectedTag)){
+    const grid = renderMasonryGrid(posts);
+    feedbodyEl.innerHTML = grid
+      ? grid
+      : (loading
+          ? `<div class="empty-state"><b>Loading…</b></div>`
+          : `<div class="empty-state"><b>No matching posts</b>Try clearing a tag filter or a different keyword.</div>`);
+    return;
+  }
+
   feedbodyEl.innerHTML = posts.length
     ? posts.map(p=>renderPost(p)).join('')
     : (loading
@@ -3447,10 +3586,8 @@ async function openProfile(handle, {push=true}={}){
     view = 'profile';
     // fresh profile — reset its post search back to defaults rather than
     // carrying over whatever the last-viewed profile had filtered to.
-    // News is only ever a real option for verified news providers (see the
-    // News tab's composer gate) — everyone else can't have news posts, so
-    // there's no point offering (or defaulting to) that filter for them.
-    profileFilterTypes = new Set(user.verifiedNewsProvider ? ['social','news','video'] : ['social','video']);
+    // Empty = unselected = show everything (see profileFilterTypes above).
+    profileFilterTypes = new Set();
     profileTag = null;
     profileQuery = "";
     profileSort = 'recent';
@@ -3568,12 +3705,54 @@ feedbodyEl.addEventListener('click', (e)=>{
   const card = e.target.closest('.card');
   const postRow = e.target.closest('.post');
   const typePill = e.target.closest('[data-profile-type]');
+  const resetFilterBtn = e.target.closest('[data-action="reset-profile-filter"]');
+  const sortBtn = e.target.closest('[data-sort]');
+  const profileTagRemoveBtn = e.target.closest('#profileSearchField [data-remove-tag]');
+  const profileTagItem = e.target.closest('#profileTagDropdown [data-tag]');
+
+  if(resetFilterBtn){
+    profileFilterTypes.clear();
+    const rowEl = document.getElementById('profileTypeRow');
+    if(rowEl && detailUser) rowEl.innerHTML = renderProfileTypeRowHtml(detailUser);
+    fetchProfilePosts(true);
+    return;
+  }
 
   if(typePill){
     const t = typePill.getAttribute('data-profile-type');
     if(profileFilterTypes.has(t)) profileFilterTypes.delete(t); else profileFilterTypes.add(t);
-    typePill.classList.toggle('active');
+    const rowEl = document.getElementById('profileTypeRow');
+    if(rowEl && detailUser) rowEl.innerHTML = renderProfileTypeRowHtml(detailUser);
     fetchProfilePosts(true);
+    return;
+  }
+
+  if(profileTagRemoveBtn){
+    profileTag = null;
+    rerenderProfileSearchCombo(detailUser);
+    fetchProfilePosts(true);
+    document.getElementById('profilePostsSearch')?.focus();
+    return;
+  }
+
+  if(profileTagItem){
+    const t = profileTagItem.getAttribute('data-tag');
+    profileTag = (profileTag === t) ? null : t; // single-select only
+    rerenderProfileSearchCombo(detailUser);
+    fetchProfilePosts(true);
+    document.getElementById('profileTagDropdown')?.classList.remove('open');
+    document.getElementById('profilePostsSearch')?.focus();
+    return;
+  }
+
+  if(sortBtn){
+    const s = sortBtn.getAttribute('data-sort');
+    if(profileSort !== s){
+      profileSort = s;
+      const rowEl = document.getElementById('profileSortRow');
+      if(rowEl) rowEl.innerHTML = renderProfileSortRowHtml();
+      fetchProfilePosts(true);
+    }
     return;
   }
 
@@ -3650,6 +3829,12 @@ feedbodyEl.addEventListener('click', (e)=>{
     }
     return;
   }
+  const masonryItem = e.target.closest('.masonry-item');
+  if(masonryItem){
+    const post = findPost(masonryItem.getAttribute('data-id'));
+    if(post) openPostDetail(post);
+    return;
+  }
   if(card){
     const video = findVideo(card.getAttribute('data-id'));
     if(video) openVideoDetail(video);
@@ -3673,19 +3858,37 @@ feedbodyEl.addEventListener('input', (e)=>{
     updateThreadSendBtn();
   }
 });
-feedbodyEl.addEventListener('change', (e)=>{
-  if(e.target.id === 'profilePostsTag'){
-    profileTag = e.target.value || null;
-    fetchProfilePosts(true);
-  } else if(e.target.id === 'profilePostsSort'){
-    profileSort = e.target.value;
-    fetchProfilePosts(true);
-  }
-});
 feedbodyEl.addEventListener('keydown', (e)=>{
   if(e.target.id === 'threadComposerInput' && e.key === 'Enter'){
     e.preventDefault();
     sendThreadMessage();
+  } else if(e.target.id === 'profilePostsSearch' && e.key === 'Backspace'
+    && e.target.selectionStart === 0 && e.target.selectionEnd === 0 && profileTag){
+    e.preventDefault();
+    profileTag = null;
+    rerenderProfileSearchCombo(detailUser);
+    fetchProfilePosts(true);
+    document.getElementById('profilePostsSearch')?.focus();
+  }
+});
+// focus/blur don't bubble, so use focusin (which does) to open the profile
+// combo's tag dropdown the same way #searchInput's focus listener does
+feedbodyEl.addEventListener('focusin', (e)=>{
+  if(e.target.id === 'profilePostsSearch'){
+    document.getElementById('profileTagDropdown')?.classList.add('open');
+  }
+});
+// mirrors searchComboEl's mousedown listener: clicking anywhere in the
+// combo (not the remove-tag button or a dropdown item) focuses the input
+feedbodyEl.addEventListener('mousedown', (e)=>{
+  const combo = e.target.closest('#profileSearchCombo');
+  if(!combo) return;
+  if(e.target.closest('[data-remove-tag]')) return;
+  if(e.target.closest('.tag-dropdown-item')) return;
+  const input = document.getElementById('profilePostsSearch');
+  if(input && e.target !== input){
+    e.preventDefault();
+    input.focus();
   }
 });
 
