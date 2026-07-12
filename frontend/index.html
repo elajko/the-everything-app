@@ -1322,6 +1322,14 @@
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand"><span class="brand-mark"></span><span class="brand-text">The Everything App</span></div>
+      <button class="sidebar-settings-btn" id="sidebarHomeBtn" aria-label="Home" title="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/></svg>
+        <span>Home</span>
+      </button>
+      <button class="sidebar-settings-btn" id="myProfileBtn" aria-label="Profile" title="Profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+        <span>Profile</span>
+      </button>
       <button class="sidebar-settings-btn" id="affiliateBtn" aria-label="Affiliate" title="Affiliate" data-action="open-affiliate">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M9 13.5 7 22l5-3 5 3-2-8.5"/></svg>
         <span>Affiliate</span>
@@ -1933,6 +1941,8 @@ const loadingRow = document.getElementById('loadingRow');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsPanel = document.getElementById('settingsPanel');
 const affiliateBtn = document.getElementById('affiliateBtn');
+const myProfileBtn = document.getElementById('myProfileBtn');
+const sidebarHomeBtn = document.getElementById('sidebarHomeBtn');
 const sidebarEl = document.getElementById('sidebar');
 const sidebarBackdropEl = document.getElementById('sidebarBackdrop');
 const menuBtn = document.getElementById('menuBtn');
@@ -2818,6 +2828,13 @@ affiliateBtn.addEventListener('click', ()=>{
   openAffiliatePage();
 });
 
+myProfileBtn.addEventListener('click', ()=>{
+  closeSidebar(); // no-op on desktop, closes the mobile drawer
+  if(currentUserHandle) openProfile(currentUserHandle);
+});
+
+sidebarHomeBtn.addEventListener('click', goHome);
+
 // desktop's always-visible answer to the mobile bottom bar's compose
 // button — reuses the exact same open logic (news-tab guard, mobile-panel
 // classes are harmless no-ops outside that breakpoint) rather than a
@@ -2880,9 +2897,17 @@ function openMobileComposer(){
 function goHome(){
   closeSidebar();
   shellEl.classList.remove('show-mobile-search', 'show-mobile-composer');
-  if(view !== 'feed') closeDetail({push: true});
-  refetchCurrentTab(true);
-  window.scrollTo({top: 0, behavior: 'instant'});
+  if(view !== 'feed'){
+    // already have the feed loaded in memory — just navigate back to it
+    // at the scroll position you left it (closeDetail restores that),
+    // rather than reloading and losing your place
+    closeDetail({push: true});
+  } else {
+    // already on the feed — a second "home" press means take me to the
+    // very top and check for new stuff
+    window.scrollTo({top: 0, behavior: 'instant'});
+    refetchCurrentTab(true);
+  }
 }
 
 const searchBackBtn = document.getElementById('searchBackBtn');
@@ -3141,7 +3166,7 @@ function renderShareBtn(kind, id){
   return `<button class="actbtn share" data-action="share" data-kind="${kind}" data-id="${id}" title="Copy link"><span class="actbtn-icon">${ICON_SHARE}</span><span>Share</span></button>`;
 }
 
-function renderActionBar(kind, item, includeShare){
+function renderActionBar(kind, item){
   return `
     <div class="actionbar">
       <button class="actbtn like ${item.liked?'active':''}" data-action="like" data-kind="${kind}" data-id="${item.id}">
@@ -3150,7 +3175,7 @@ function renderActionBar(kind, item, includeShare){
       <button class="actbtn repost" data-action="repost" data-kind="${kind}" data-id="${item.id}">
         <span class="actbtn-icon">${ICON_REPOST}</span><span>${item.reposts}</span>
       </button>
-      ${includeShare ? renderShareBtn(kind, item.id) : ''}
+      ${renderShareBtn(kind, item.id)}
     </div>`;
 }
 
@@ -3218,7 +3243,6 @@ function renderVideoEmbed(video){
 }
 
 function renderPost(post, extraClass){
-  const isDetail = extraClass === 'detail-post';
   return `
     <div class="post ${extraClass||''}" data-id="${post.id}">
       ${tagPills(post.tags)}
@@ -3226,7 +3250,7 @@ function renderPost(post, extraClass){
       ${post.body ? `<div class="post-body">${post.body}</div>` : ''}
       ${renderPostMedia(post)}
       ${renderPostEmbed(post, 1)}
-      ${renderActionBar('post', post, isDetail)}
+      ${renderActionBar('post', post)}
     </div>`;
 }
 
@@ -3261,7 +3285,7 @@ function renderVideoDetailPage(video){
       <div class="video-title">${video.videoTitle}</div>
       <div class="video-detail-meta">
         ${renderPostHead(video.channel, video.date)}
-        ${renderActionBar('video', video, true)}
+        ${renderActionBar('video', video)}
       </div>
       ${video.description ? `<div class="post-body">${video.description}</div>` : ''}
     </div>`;
